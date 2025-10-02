@@ -1,5 +1,5 @@
 "use client";
-import React, { useState } from "react";
+import React, {useEffect, useState} from "react";
 
 interface CountryCode {
   code: string;
@@ -10,22 +10,29 @@ interface PhoneInputProps {
   countries: CountryCode[];
   placeholder?: string;
   onChange?: (phoneNumber: string) => void;
+  className?: string;
   selectPosition?: "start" | "end"; // New prop for dropdown position
+
 }
 
 const PhoneInput: React.FC<PhoneInputProps> = ({
   countries,
-  placeholder = "+1 (555) 000-0000",
+  placeholder = "+98 912 2368 957",
   onChange,
   selectPosition = "start", // Default position is 'start'
+    className="",
 }) => {
-  const [selectedCountry, setSelectedCountry] = useState<string>("US");
-  const [phoneNumber, setPhoneNumber] = useState<string>("+1");
+  const [selectedCountry, setSelectedCountry] = useState<string>("IR");
+  const [phoneNumber, setPhoneNumber] = useState<string>("+98");
 
   const countryCodes: Record<string, string> = countries.reduce(
     (acc, { code, label }) => ({ ...acc, [code]: label }),
     {}
   );
+
+  useEffect(() => {
+    onChange?.(phoneNumber);
+  }, [phoneNumber, onChange]);
 
   const handleCountryChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const newCountry = e.target.value;
@@ -45,7 +52,9 @@ const PhoneInput: React.FC<PhoneInputProps> = ({
   };
 
   return (
-    <div className="relative flex">
+    <div
+        className={`relative flex ${className}`}
+    >
       {/* Dropdown position: Start */}
       {selectPosition === "start" && (
         <div className="absolute">
