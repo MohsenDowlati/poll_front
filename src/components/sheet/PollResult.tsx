@@ -46,7 +46,7 @@ const PollResult: React.FC<ComponentCardProps> = ({
                                 <div key={index} className="flex flex-row gap-2 items-center">
                                     <div className="h-3 w-3 rounded-full bg-blue-950" />
                                     <p className="text-gray-700 dark:text-gray-400 text-sm lg:text-lg">{option}</p>
-                                    <p>vote: {votes[index]}</p>
+                                    <p>vote: {votes[index] ?? 0}</p>
                                 </div>
                             ))}
                         </div>

@@ -22,7 +22,7 @@ export default function Single({id,title, options, onChangeSelection}:choiceType
                 {
                     options.map((choice,index) =>(
                         <div key={`${id}-${index}`} className="flex items-center gap-3 rounded-md bg-white/70 hover:bg-white/90 px-1 py-2 md:py-3 select-none md:px-3" onClick={()=>{ setVote(index); onChangeSelection?.(index); }}>
-                            <input type="checkbox" className="opacity-80 w-[20px] h-[20px] md:w-[32px] md:h-[32px]" checked={index===vote}/>
+                            <input type="checkbox" className="opacity-80 w-[20px] h-[20px] md:w-[32px] md:h-[32px]" checked={index===vote} onChange={()=>setVote(index)}/>
                             <p className="w-[90%] font-normal text-xs m-0 md:text-base">{choice}</p>
                         </div>
                     ))

@@ -115,6 +115,22 @@ const resolveStatusMeta = (statusValue?: string) => {
   return { label: toTitleCase(statusValue), color: 'info' as const };
 };
 
+const resolveSheetIdentifier = (sheet: SheetRecord): string | number | undefined => {
+  const candidates: Array<string | number | undefined | null> = [
+    sheet.id as string | number | undefined,
+    (sheet as Record<string, unknown>).sheet_id as string | number | undefined,
+    (sheet as Record<string, unknown>).sheetId as string | number | undefined,
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate !== undefined && candidate !== null) {
+      return candidate;
+    }
+  }
+
+  return undefined;
+};
+
 const extractRoleString = (value: unknown): string | undefined => {
   if (typeof value === 'string' && value.trim()) {
     return value.trim().toLowerCase();
@@ -423,6 +439,7 @@ export default function RecentOrders() {
               const statusMeta = resolveStatusMeta(sheet.status as string | undefined);
               const normalizedStatus = (sheet.status ?? '').toString().toLowerCase();
               const isPending = normalizedStatus === 'pending';
+              const sheetIdentifier = resolveSheetIdentifier(sheet);
 
               return (
                 <TableRow key={sheet.id ?? resolveName(sheet)}>
@@ -488,7 +505,7 @@ export default function RecentOrders() {
                     </TableCell>
                   )}
                   <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                    <FullScreenModal/>
+                    <FullScreenModal sheetId={sheetIdentifier} sheetTitle={resolveName(sheet)} />
                   </TableCell>
                 </TableRow>
               );

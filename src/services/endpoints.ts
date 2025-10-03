@@ -1,4 +1,4 @@
-const endpoints = {
+﻿const endpoints = {
     auth: {
         login: '/login',
         signup: '/signup',
@@ -20,6 +20,7 @@ const endpoints = {
     },
     poll: {
         fetch: '/client/fetch',
+        adminFetch: '/admin/fetch',
         submit: '/submit',
         create: '/create',
     },

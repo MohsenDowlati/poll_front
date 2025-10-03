@@ -59,15 +59,32 @@ export function buildMultiChoiceVotes(selectedIndices: number[], optionsLength: 
   return votes;
 }
 
-export function buildSlideVotes(optionsLength: number): number[] {
+export function buildSlideVotes(optionsLength: number, orderIndices?: number[]): number[] {
   const votes = createZeroArray(optionsLength);
   if (votes.length === 0) return votes;
 
-  // Descending sequence: [n-1, n-2, ..., 2, 1]
-  for (let i = 0; i < votes.length; i++) {
-    const rankFromTop = votes.length - i - 1;
-    votes[i] = Math.max(rankFromTop, 1);
+  const order = Array.isArray(orderIndices) && orderIndices.length > 0
+    ? orderIndices
+    : votes.map((_, idx) => idx);
+  const maxScore = votes.length;
+
+  for (let rank = 0; rank < order.length; rank++) {
+    const originalIndex = order[rank];
+    if (typeof originalIndex !== 'number' || !Number.isFinite(originalIndex)) {
+      continue;
+    }
+
+    const clampedIndex = Math.max(0, Math.min(votes.length - 1, Math.floor(originalIndex)));
+    const score = Math.max(maxScore - rank, 1);
+    votes[clampedIndex] = score;
   }
+
+  for (let idx = 0; idx < votes.length; idx++) {
+    if (votes[idx] === 0) {
+      votes[idx] = 1;
+    }
+  }
+
   return votes;
 }
 
