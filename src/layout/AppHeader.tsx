@@ -2,13 +2,16 @@
 import { ThemeToggleButton } from "@/components/common/ThemeToggleButton";
 import NotificationDropdown from "@/components/header/NotificationDropdown";
 import LogOut from "@/components/header/LogOut";
+import LanguageSwitcher from "@/components/header/LanguageSwitcher";
 import { useSidebar } from "@/context/SidebarContext";
+import { useLocale } from "@/hooks/useLocale";
 import Image from "next/image";
 import Link from "next/link";
 import React, { useState ,useEffect,useRef} from "react";
 
 const AppHeader: React.FC = () => {
   const [isApplicationMenuOpen, setApplicationMenuOpen] = useState(false);
+  const { t } = useLocale();
 
   const { isMobileOpen, toggleSidebar, toggleMobileSidebar } = useSidebar();
 
@@ -47,7 +50,7 @@ const AppHeader: React.FC = () => {
           <button
             className="items-center justify-center w-10 h-10 text-gray-500 border-gray-200 rounded-lg z-99999 dark:border-gray-800 lg:flex dark:text-gray-400 lg:h-11 lg:w-11 lg:border"
             onClick={handleToggle}
-            aria-label="Toggle Sidebar"
+            aria-label={t('header.toggleSidebar')}
           >
             {isMobileOpen ? (
               <svg
@@ -127,20 +130,19 @@ const AppHeader: React.FC = () => {
           } items-center justify-between w-full gap-4 px-5 py-4 lg:flex shadow-theme-md lg:justify-end lg:px-0 lg:shadow-none`}
         >
           <div className="flex w-full items-center gap-2 2xsm:gap-3 lg:w-auto lg:justify-end">
-            {/* <!-- Dark Mode Toggler --> */}
             <div className="order-1 lg:order-1">
               <ThemeToggleButton />
             </div>
-            {/* <!-- Dark Mode Toggler --> */}
-            <div className="order-2 lg:order-3">
-              <LogOut />
+            <div className="order-2 lg:order-2">
+              <LanguageSwitcher />
             </div>
-            {/* <!-- Notification Menu Area --> */}
-            <div className="order-3 sm:ml-auto lg:order-2 lg:ml-0">
+            <div className="order-3 sm:ml-auto lg:order-3 lg:ml-0">
               <NotificationDropdown />
             </div>
+            <div className="order-4 lg:order-4">
+              <LogOut />
+            </div>
           </div>
-
         </div>
       </div>
     </header>
@@ -148,4 +150,3 @@ const AppHeader: React.FC = () => {
 };
 
 export default AppHeader;
-

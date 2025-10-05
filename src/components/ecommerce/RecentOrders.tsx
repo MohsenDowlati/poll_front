@@ -1,6 +1,7 @@
 'use client';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import type { TFunction } from 'i18next';
 import {
   Table,
   TableBody,
@@ -10,6 +11,7 @@ import {
 } from '../ui/table';
 import Badge from '../ui/badge/Badge';
 import Label from '@/components/form/Label';
+import { useLocale } from '@/hooks/useLocale';
 import {
   fetchSheets,
   extractSheetList,
@@ -18,8 +20,7 @@ import {
 } from '@/services/sheet/sheet';
 import { getAuthTokenFromCookie } from '@/utils/authToken';
 import { decodeJwtPayload, type JwtPayload } from '@/utils/jwt';
-import {useRouter} from "next/navigation";
-import Button from "@/components/ui/button/Button";
+import { useRouter } from "next/navigation";
 import FullScreenModal from "@/components/example/ModalExample/FullScreenModal";
 
 const DEFAULT_PAGE = 1;
@@ -28,7 +29,7 @@ const DEFAULT_PAGE_SIZE = 15;
 const toTitleCase = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
 
-const resolveName = (sheet: SheetRecord): string => {
+const resolveName = (sheet: SheetRecord, translate: TFunction<'translation'>): string => {
   const { name, title, id } = sheet;
   if (typeof name === 'string' && name.trim()) {
     return name.trim();
@@ -36,7 +37,10 @@ const resolveName = (sheet: SheetRecord): string => {
   if (typeof title === 'string' && title.trim()) {
     return title.trim();
   }
-  return String(id ?? 'Unknown');
+  if (id !== undefined && id !== null) {
+    return String(id);
+  }
+  return translate('status.unknown');
 };
 
 const resolveSubtitle = (sheet: SheetRecord): string => {
@@ -93,26 +97,33 @@ const resolveDate = (sheet: SheetRecord): string => {
   return '-';
 };
 
-const resolveStatusMeta = (statusValue?: string) => {
+const resolveStatusMeta = (
+  statusValue: string | undefined,
+  translate: TFunction<'translation'>
+) => {
   if (!statusValue) {
     return { label: '-', color: 'light' as const };
   }
 
   const normalized = statusValue.toLowerCase();
+  const translationKey = `status.${normalized}`;
 
   if (normalized === 'pending') {
-    return { label: toTitleCase(normalized), color: 'warning' as const };
+    return { label: translate(translationKey), color: 'warning' as const };
   }
 
   if (['approved', 'published', 'active', 'verified'].includes(normalized)) {
-    return { label: toTitleCase(normalized), color: 'success' as const };
+    return { label: translate(translationKey), color: 'success' as const };
   }
 
   if (['rejected', 'deleted', 'inactive', 'closed'].includes(normalized)) {
-    return { label: toTitleCase(normalized), color: 'error' as const };
+    return { label: translate(translationKey), color: 'error' as const };
   }
 
-  return { label: toTitleCase(statusValue), color: 'info' as const };
+  return {
+    label: translate(translationKey, { defaultValue: toTitleCase(statusValue) }),
+    color: 'info' as const,
+  };
 };
 
 const resolveSheetIdentifier = (sheet: SheetRecord): string | number | undefined => {
@@ -131,12 +142,6 @@ const resolveSheetIdentifier = (sheet: SheetRecord): string | number | undefined
   return undefined;
 };
 
-const extractRoleString = (value: unknown): string | undefined => {
-  if (typeof value === 'string' && value.trim()) {
-    return value.trim().toLowerCase();
-  }
-  return undefined;
-};
 
 const isSuperAdmin = (payload: JwtPayload | null): boolean => {
   if (!payload) {
@@ -219,6 +224,10 @@ export default function RecentOrders() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [canManageSheets, setCanManageSheets] = useState(false);
+  const { t, language, direction } = useLocale();
+  const locale = language === 'fa' ? 'fa-IR' : 'en-US';
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const formatNumber = useCallback((value: number) => numberFormatter.format(value), [numberFormatter]);
 
   const router = useRouter();
 
@@ -229,7 +238,7 @@ export default function RecentOrders() {
     }
     const payload = decodeJwtPayload(token);
     setCanManageSheets(isSuperAdmin(payload));
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     let isMounted = true;
@@ -284,7 +293,7 @@ export default function RecentOrders() {
           }
         } else {
           setSheets([]);
-          setError('Failed to load sheets.');
+          setError(t('tables.error.load'));
         }
       } catch (fetchError) {
         console.error('Failed to fetch sheets', fetchError);
@@ -292,7 +301,7 @@ export default function RecentOrders() {
           return;
         }
         setSheets([]);
-        setError('Unable to fetch sheets right now.');
+        setError(t('tables.error.unavailable'));
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -304,7 +313,7 @@ export default function RecentOrders() {
     return () => {
       isMounted = false;
     };
-  }, [page, pageSize]);
+  }, [page, pageSize, t]);
 
   const handlePageChange = (nextPage: number) => {
     const targetPage = Math.max(nextPage, 1);
@@ -321,23 +330,26 @@ export default function RecentOrders() {
     if (totalItems !== undefined) {
       const cappedEnd = endIndex ? Math.min(endIndex, totalItems) : 0;
       const effectiveStart = startIndex || (totalItems > 0 ? 1 : 0);
-      return `${effectiveStart}-${cappedEnd} out of ${totalItems}`;
+      return t('tables.pagination.range', {
+        start: formatNumber(effectiveStart),
+        end: formatNumber(cappedEnd),
+        total: formatNumber(totalItems),
+      });
     }
 
-    if (sheets.length === 0) {
-      return '0-0';
-    }
-
-    return `${startIndex}-${endIndex}`;
-  }, [page, pageSize, sheets.length, totalItems]);
+    return t('tables.pagination.rangeNoTotal', {
+      start: formatNumber(startIndex),
+      end: formatNumber(endIndex),
+    });
+  }, [formatNumber, page, pageSize, sheets.length, t, totalItems]);
 
   const showEmptyState = !isLoading && sheets.length === 0 && !error;
 
   return (
-    <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
+    <div dir={direction} className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
       <div className="flex flex-col gap-2 mb-4 overflow-x-auto sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">Survey Sheets</h3>
+          <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">{t('tables.surveySheets')}</h3>
         </div>
 
         <div className="flex items-center gap-3">
@@ -346,7 +358,7 @@ export default function RecentOrders() {
             onClick={() => handlePageChange(page - 1)}
             disabled={page <= 1 || isLoading}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-            aria-label="Previous page"
+            aria-label={t('tables.pagination.previous')}
           >
             <svg
               width="20"
@@ -370,7 +382,7 @@ export default function RecentOrders() {
             onClick={() => handlePageChange(page + 1)}
             disabled={isLoading || page >= totalPages}
             className="inline-flex items-center gap-2 rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-theme-sm font-medium text-gray-700 shadow-theme-xs hover:bg-gray-50 hover:text-gray-800 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] dark:hover:text-gray-200"
-            aria-label="Next page"
+            aria-label={t('tables.pagination.next')}
           >
             <svg
               width="20"
@@ -436,18 +448,19 @@ export default function RecentOrders() {
 
           <TableBody className="divide-y divide-gray-100 dark:divide-gray-800">
             {sheets.map((sheet) => {
-              const statusMeta = resolveStatusMeta(sheet.status as string | undefined);
+              const statusMeta = resolveStatusMeta(sheet.status as string | undefined, t);
               const normalizedStatus = (sheet.status ?? '').toString().toLowerCase();
               const isPending = normalizedStatus === 'pending';
               const sheetIdentifier = resolveSheetIdentifier(sheet);
+              const resolvedName = resolveName(sheet, t);
 
               return (
-                <TableRow key={sheet.id ?? resolveName(sheet)}>
+                <TableRow key={sheet.id ?? resolvedName}>
                   <TableCell className="py-3">
                     <div className="flex items-center gap-3">
                       <div>
                         <p className="font-medium text-gray-800 text-theme-sm dark:text-white/90">
-                          {resolveName(sheet)}
+                          {resolvedName}
                         </p>
                         <span className="text-gray-500 text-theme-xs dark:text-gray-400">
                           {resolveSubtitle(sheet)}
@@ -474,7 +487,7 @@ export default function RecentOrders() {
                             <button
                               type="button"
                               className="inline-flex"
-                              aria-label="Approve sheet"
+                              aria-label={t('actions.approve')}
                             >
                               <Badge size="sm" color="success">
                                 <CheckIcon />
@@ -483,7 +496,7 @@ export default function RecentOrders() {
                             <button
                               type="button"
                               className="inline-flex"
-                              aria-label="Reject sheet"
+                              aria-label={t('actions.reject')}
                             >
                               <Badge size="sm" color="error">
                                 <CloseIcon />
@@ -494,7 +507,7 @@ export default function RecentOrders() {
                           <button
                             type="button"
                             className="inline-flex"
-                            aria-label="Delete sheet"
+                            aria-label={t('actions.delete')}
                           >
                             <Badge size="sm" color="info">
                               <TrashIcon />
@@ -505,7 +518,7 @@ export default function RecentOrders() {
                     </TableCell>
                   )}
                   <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                    <FullScreenModal sheetId={sheetIdentifier} sheetTitle={resolveName(sheet)} />
+                    <FullScreenModal sheetId={sheetIdentifier} sheetTitle={resolvedName} />
                   </TableCell>
                 </TableRow>
               );
@@ -517,7 +530,7 @@ export default function RecentOrders() {
                   colSpan={canManageSheets ? 6 : 5}
                   className="py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
-                  Loading sheets...
+                  {t('tables.loading')}
                 </TableCell>
               </TableRow>
             )}
@@ -528,7 +541,7 @@ export default function RecentOrders() {
                   colSpan={canManageSheets ? 6 : 5}
                   className="py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
-                  No sheets found.
+                  {t('tables.empty')}
                 </TableCell>
               </TableRow>
             )}
@@ -549,3 +562,24 @@ export default function RecentOrders() {
     </div>
   );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+

@@ -738,3 +738,16 @@ span.flatpickr-weekday,
   opacity: 0.8;
   cursor: grabbing; /* Changes the cursor to indicate dragging */
 }
+html[dir="rtl"] body {
+  direction: rtl;
+}
+
+html[dir="rtl"] body p,
+html[dir="rtl"] body h1,
+html[dir="rtl"] body h2,
+html[dir="rtl"] body h3,
+html[dir="rtl"] body h4,
+html[dir="rtl"] body h5,
+html[dir="rtl"] body h6 {
+  text-align: right;
+}
