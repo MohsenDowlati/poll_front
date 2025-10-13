@@ -2,6 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Select from "@/components/form/Select";
+import {useLocale} from "@/hooks/useLocale";
 
 interface VenueOption {
     label: string;
@@ -17,28 +18,59 @@ interface VenueSelectProps {
 
 const defaultVenues: VenueOption[] = [
     {
-        label: "place 1",
-        value: "place 1",
+        label: "خواجه نصیر",
+        value: "خواجه نصیر",
     },
     {
-        label: "place 2",
-        value: "place 2",
+        label: "مولانا",
+        value: "مولانا",
     },
     {
-        label: "place 3",
-        value: "place 3",
+        label: "فیض",
+        value: "فیض",
     },
     {
-        label: "place 4",
-        value: "place 4",
+        label: "عطار",
+        value: "عطار",
     },
     {
-        label: "place 5",
-        value: "place 5",
+        label: "شیخ مفید",
+        value: "شیخ مفید",
     },
     {
-        label: "place 6",
-        value: "place 6",
+        label: "مجموعه مذاکرات",
+        value: "مجموعه مذاکرات",
+    },{
+    label: "ابن سینا",
+        value: "ابن سینا",
+    },
+    {
+        label: "خورشید",
+        value: "خورشید",
+    },
+    {
+        label: "شمس",
+        value: "شمس",
+    },
+    {
+        label: "سفره‌خانه",
+        value: "سفره‌خانه",
+    },
+    {
+        label: "لابی خواجه‌نصیر",
+        value: "لابی خواجه‌نصیر",
+    },
+    {
+        label: "لابی فیض و عطار",
+        value: "لابی فیض و عطار",
+    },
+    {
+        label: "پارکینگ",
+        value: "پارکینگ",
+    },
+    {
+        label: "درب اختصاصی",
+        value: "درب اختصاصی",
     }
 ];
 
@@ -49,6 +81,7 @@ const VenueSelect: React.FC<VenueSelectProps> = ({
     placeholder = "Venue",
 }) => {
     const [internalValue, setInternalValue] = useState<string>(value ?? "");
+
 
     useEffect(() => {
         if (value !== undefined) {
@@ -61,6 +94,7 @@ const VenueSelect: React.FC<VenueSelectProps> = ({
             setInternalValue(val);
         }
         onChange?.(val);
+        console.log(val)
     };
 
     return (

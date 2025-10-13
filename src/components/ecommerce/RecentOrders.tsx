@@ -19,7 +19,8 @@ import {
   type SheetRecord,
 } from '@/services/sheet/sheet';
 import { getAuthTokenFromCookie } from '@/utils/authToken';
-import { decodeJwtPayload, type JwtPayload } from '@/utils/jwt';
+import { decodeJwtPayload } from '@/utils/jwt';
+import { isSuperAdmin } from '@/utils/roles';
 import { useRouter } from "next/navigation";
 import FullScreenModal from "@/components/example/ModalExample/FullScreenModal";
 
@@ -143,23 +144,6 @@ const resolveSheetIdentifier = (sheet: SheetRecord): string | number | undefined
 };
 
 
-const isSuperAdmin = (payload: JwtPayload | null): boolean => {
-  if (!payload) {
-    return false;
-  }
-
-  if (payload.admin === 'super_admin') {
-    return true;
-  }
-
-
-  const userField = (payload as Record<string, unknown>).user;
-  if (userField && typeof userField === 'object') {
-    return isSuperAdmin(userField as JwtPayload);
-  }
-
-  return false;
-};
 
 const CheckIcon = () => (
   <svg
@@ -346,7 +330,7 @@ export default function RecentOrders() {
   const showEmptyState = !isLoading && sheets.length === 0 && !error;
 
   return (
-    <div dir={direction} className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
+    <div dir={'ltr'} className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
       <div className="flex flex-col gap-2 mb-4 overflow-x-auto sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h3 className="text-lg font-semibold text-gray-800 dark:text-white/90">{t('tables.surveySheets')}</h3>
@@ -409,39 +393,39 @@ export default function RecentOrders() {
                 isHeader
                 className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
               >
-                Name
+                {t('tables.headers.name')}
               </TableCell>
               <TableCell
                 isHeader
                 className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
               >
-                Owner
+                {t('tables.headers.owner')}
               </TableCell>
               <TableCell
                 isHeader
                 className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
               >
-                Date
+                {t('tables.headers.date')}
               </TableCell>
               <TableCell
                 isHeader
                 className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
               >
-                Status
+                {t('tables.headers.status')}
               </TableCell>
               {canManageSheets && (
                 <TableCell
                   isHeader
                   className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
                 >
-                  Actions
+                  {t('tables.headers.actions')}
                 </TableCell>
               )}
               <TableCell
                 isHeader
                 className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
               >
-                Analyze
+                {t('tables.headers.analyze')}
               </TableCell>
             </TableRow>
           </TableHeader>
@@ -562,6 +546,13 @@ export default function RecentOrders() {
     </div>
   );
 }
+
+
+
+
+
+
+
 
 
 

@@ -10,6 +10,7 @@ import { normalizePhone } from "@/utils/normalizePhone";
 import { login, LoginCredentials } from "@/services/auth/auth";
 import { useRouter } from "next/navigation";
 import { extractToken, setAuthTokenCookie } from "@/utils/authToken";
+import {useLocale} from "@/hooks/useLocale";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -17,6 +18,8 @@ export default function SignInForm() {
   const [phoneNumber, setPhoneNumber] = useState("");
 
   const router = useRouter();
+
+  const {direction, t} = useLocale();
 
   const countries = [
     {
@@ -88,10 +91,10 @@ export default function SignInForm() {
         <div>
           <div className="mb-5 sm:mb-8">
             <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Sign In
+              {t('auth.login.title')}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your phone and password to sign in!
+              {t('auth.login.description')}
             </p>
           </div>
           <div>
@@ -99,15 +102,15 @@ export default function SignInForm() {
               <div className="space-y-6">
                 <div>
                   <Label>
-                    Phone <span className="text-error-500">*</span>{" "}
+                    {t('auth.login.phone')} <span className="text-error-500">*</span>{" "}
                   </Label>
                   <PhoneInput countries={countries} onChange={(val) => setPhone(val)} />
                 </div>
                 <div>
                   <Label>
-                    Password <span className="text-error-500">*</span>{" "}
+                    {t('auth.login.password')} <span className="text-error-500">*</span>{" "}
                   </Label>
-                  <div className="relative">
+                  <div className="relative" dir={"ltr"}>
                     <Input
                       type={showPassword ? "text" : "password"}
                       placeholder="Enter your password"
@@ -127,23 +130,11 @@ export default function SignInForm() {
                 </div>
                 <div>
                   <Button className="w-full" size="sm" type="submit">
-                    Sign in
+                    {t('auth.login.title')}
                   </Button>
                 </div>
               </div>
             </form>
-
-            <div className="mt-5">
-              <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-                Don&apos;t have an account? {""}
-                <Link
-                  href="/signup"
-                  className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
-                >
-                  Sign Up
-                </Link>
-              </p>
-            </div>
           </div>
         </div>
       </div>

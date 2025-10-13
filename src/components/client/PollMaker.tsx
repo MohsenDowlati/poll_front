@@ -1,6 +1,7 @@
 'use client';
 
 import React, {useEffect, useMemo, useState} from 'react';
+import {useRouter} from 'next/navigation';
 import Multi from '@/components/client/Multi';
 import Slide from '@/components/client/Slide';
 import Button from '@/components/ui/button/Button';
@@ -82,6 +83,7 @@ const Poll = ({data, onChange}: {data: PollRecord; onChange: (payload: { id: str
 };
 
 export default function PollMaker({id}: {id: string}) {
+    const router = useRouter();
     const countries = [
         {
             code: 'IR',
@@ -313,6 +315,7 @@ export default function PollMaker({id}: {id: string}) {
                 ),
             );
             setSubmitMessage('Your votes were submitted successfully.');
+            router.push('/sheet-auth');
         } catch (submitError) {
             console.error('Failed to submit votes', submitError);
             setError('Failed to submit votes. Please try again.');

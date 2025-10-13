@@ -9,6 +9,7 @@ import FormInModal, { PollDraftData } from "@/components/example/ModalExample/Fo
 import Button from "@/components/ui/button/Button";
 import PollCard from "@/components/sheet/PollCard";
 import { createSheet, CreateSheetPayload, SheetPollPayload } from "@/services/sheet/sheet";
+import {useLocale} from "@/hooks/useLocale";
 
 interface DraftPoll extends PollDraftData {
   description?: string;
@@ -37,25 +38,55 @@ export default function SheetMaker() {
   const [venue, setVenue] = useState<string>("");
   const [isPhoneRequired, setIsPhoneRequired] = useState<boolean>(false);
   const [polls, setPolls] = useState<DraftPoll[]>([]);
+  const [pollBeingEdited, setPollBeingEdited] = useState<DraftPoll | null>(null);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+
+  const normalizePollDraft = useCallback(
+    (poll: PollDraftData): DraftPoll => ({
+      ...poll,
+      options: isTextPollType(poll.poll_type) ? ["opinion"] : poll.options,
+    }),
+    [],
+  );
 
   const canSubmit = useMemo(() => {
     return sheetName.trim() !== "" && venue.trim() !== "" && !isSubmitting;
   }, [sheetName, venue, isSubmitting]);
 
-  const handlePollCreated = useCallback((poll: PollDraftData) => {
-    const normalizedPoll: DraftPoll = {
-      ...poll,
-      options: isTextPollType(poll.poll_type) ? ["opinion"] : poll.options,
-    };
-
-    setPolls((prev) => [...prev, normalizedPoll]);
-  }, []);
+  const handlePollCreated = useCallback(
+    (poll: PollDraftData) => {
+      setPolls((prev) => [...prev, normalizePollDraft(poll)]);
+    },
+    [normalizePollDraft],
+  );
 
   const handlePollDelete = useCallback((pollId: string) => {
     setPolls((prev) => prev.filter((poll) => poll.id !== pollId));
+  }, []);
+
+  const handlePollUpdated = useCallback(
+    (updatedPoll: PollDraftData) => {
+      setPolls((prev) =>
+        prev.map((poll) =>
+          poll.id === updatedPoll.id ? { ...poll, ...normalizePollDraft(updatedPoll) } : poll,
+        ),
+      );
+    },
+    [normalizePollDraft],
+  );
+
+  const handlePollEdit = useCallback(
+    (pollId: string) => {
+      const target = polls.find((poll) => poll.id === pollId) || null;
+      setPollBeingEdited(target);
+    },
+    [polls],
+  );
+
+  const handlePollEditModalClosed = useCallback(() => {
+    setPollBeingEdited(null);
   }, []);
 
   const resetForm = () => {
@@ -94,6 +125,8 @@ export default function SheetMaker() {
     }
   };
 
+  const { language, changeLanguage, t } = useLocale();
+
   return (
     <div className="mx-auto w-full max-w-[780px] text-center flex flex-col">
       <h3 className="mb-4 font-semibold text-gray-800 text-theme-xl dark:text-white/90 sm:text-2xl">
@@ -111,13 +144,18 @@ export default function SheetMaker() {
           />
         </div>
         <div className="col-span-4 mt-5">
-          <VenueSelect value={venue} onChange={setVenue} />
+          <VenueSelect value={venue} onChange={setVenue} placeholder={t('selector.venue')}/>
         </div>
         <PhoneSwitch value={isPhoneRequired} onChange={setIsPhoneRequired} />
       </div>
 
       <div className="grid grid-cols-2 mb-8 gap-4">
-        <FormInModal onPollCreated={handlePollCreated} />
+        <FormInModal
+          onPollCreated={handlePollCreated}
+          onPollUpdated={handlePollUpdated}
+          editingPoll={pollBeingEdited}
+          onModalClosed={handlePollEditModalClosed}
+        />
         <Button
           variant="outline"
           type="button"
@@ -147,6 +185,7 @@ export default function SheetMaker() {
               category={poll.category || ""}
               type={poll.poll_type}
               onDelete={() => handlePollDelete(poll.id)}
+              onEdit={()=>handlePollEdit(poll.id)}
             />
           );
         })}

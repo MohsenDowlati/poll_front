@@ -11,6 +11,7 @@ import Button from "@/components/ui/button/Button";
 import { normalizePhone } from "@/utils/normalizePhone";
 import { useRouter } from "next/navigation";
 import { extractToken, setAuthTokenCookie } from "@/utils/authToken";
+import {useLocale} from "@/hooks/useLocale";
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +22,8 @@ export default function SignUpForm() {
   const [password, setPassword] = useState("");
 
   const router = useRouter();
+
+  const {direction, t} = useLocale();
 
   const countries = [
     {
@@ -108,11 +111,11 @@ export default function SignUpForm() {
       <div className="flex flex-col justify-center flex-1 w-full max-w-md mx-auto">
         <div>
           <div className="mb-5 sm:mb-8">
-            <h1 className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
-              Sign Up
+            <h1 dir={direction} className="mb-2 font-semibold text-gray-800 text-title-sm dark:text-white/90 sm:text-title-md">
+              {t('auth.signup.title')}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              Enter your phone and password to sign up!
+              {t('auth.signup.description')}
             </p>
           </div>
           <div>
@@ -122,7 +125,7 @@ export default function SignUpForm() {
                   {/* <!-- Name --> */}
                   <div className="sm:col-span-1">
                     <Label>
-                      Name<span className="text-error-500">*</span>
+                      {t('auth.signup.name')}<span className="text-error-500">*</span>
                     </Label>
                     <Input
                       type="text"
@@ -135,7 +138,7 @@ export default function SignUpForm() {
                   {/* <!-- Organization --> */}
                   <div className="sm:col-span-1">
                     <Label>
-                      Organization<span className="text-error-500">*</span>
+                      {t('auth.signup.organization')}<span className="text-error-500">*</span>
                     </Label>
                     <Input
                       type="text"
@@ -149,16 +152,16 @@ export default function SignUpForm() {
                 {/* <!-- Phone --> */}
                 <div>
                   <Label>
-                    Phone<span className="text-error-500">*</span>
+                    {t('auth.login.phone')}<span className="text-error-500">*</span>
                   </Label>
                   <PhoneInput countries={countries} onChange={(val)=>setPhoneNumber(val)}/>
                 </div>
                 {/* <!-- Password --> */}
                 <div>
                   <Label>
-                    Password<span className="text-error-500">*</span>
+                    {t('auth.login.password')}<span className="text-error-500">*</span>
                   </Label>
-                  <div className="relative">
+                  <div className="relative" dir="ltr">
                     <Input
                       placeholder="Enter your password"
                       type={showPassword ? "text" : "password"}
@@ -177,27 +180,10 @@ export default function SignUpForm() {
                   </div>
                 </div>
                 {/* <!-- Checkbox --> */}
-                <div className="flex items-center gap-3">
-                  <Checkbox
-                    className="w-5 h-5"
-                    checked={isChecked}
-                    onChange={setIsChecked}
-                  />
-                  <p className="inline-block font-normal text-gray-500 dark:text-gray-400">
-                    By creating an account means you agree to the{" "}
-                    <span className="text-gray-800 dark:text-white/90">
-                      Terms and Conditions,
-                    </span>{" "}
-                    and our{" "}
-                    <span className="text-gray-800 dark:text-white">
-                      Privacy Policy
-                    </span>
-                  </p>
-                </div>
                 {/* <!-- Button --> */}
                 <div>
                   <Button className="w-full" size="sm" disabled={!isChecked} type="submit">
-                    Sign Up
+                    {t('auth.signup.title')}
                   </Button>
                 </div>
               </div>
@@ -207,7 +193,7 @@ export default function SignUpForm() {
               <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
                 Already have an account?
                 <Link
-                  href="/signin"
+                  href="/"
                   className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
                 >
                   Sign In

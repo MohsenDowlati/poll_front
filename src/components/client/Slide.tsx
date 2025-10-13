@@ -20,7 +20,9 @@ function HamburgerSvg({className}: {className: string}) {
     )
 }
 
-type ChoiceItem = { id: string; label: string };
+const STAR_COUNT = 5;
+
+type ChoiceItem = { id: string; label: string; rating: number };
 interface choiceType {
     id: string;
     title: string;
@@ -31,7 +33,7 @@ interface choiceType {
 export default function Slide({ id, title, options, onChangeOrder }: choiceType):JSX.Element {
     // build stable ids for options (even if labels repeat)
     const initialItems = useMemo<ChoiceItem[]>(
-        () => options.map((label, idx) => ({ id: `${id}-${idx}-${label}`, label })),
+        () => options.map((label, idx) => ({ id: `${id}-${idx}-${label}`, label, rating: 0 })),
         [options, id]
     );
 
@@ -39,6 +41,13 @@ export default function Slide({ id, title, options, onChangeOrder }: choiceType)
 
     // keep local list in sync if `options` prop changes
     useEffect(() => setItems(initialItems), [initialItems]);
+
+    const handleRate = (itemId: string, rating: number) => {
+        const nextRating = Math.max(1, Math.min(STAR_COUNT, rating));
+        setItems((prev) =>
+            prev.map((it) => (it.id === itemId ? { ...it, rating: nextRating } : it))
+        );
+    };
 
     return (
         <div className="flex flex-col rounded-[18px] px-[24px] py-[26px] bg-[#85bbf1] drop-shadow-lg my-4 mx-[5%] min-h-[300px]">
@@ -57,7 +66,7 @@ export default function Slide({ id, title, options, onChangeOrder }: choiceType)
                 className="my-[8px] mx-[2px] flex flex-col gap-2 lg:mx-[18px]"
             >
                 {items.map((item) => (
-                    <DraggableRow key={item.id} item={item} />
+                    <DraggableRow key={item.id} item={item} onRate={handleRate} />
                 ))}
             </Reorder.Group>
 
@@ -66,8 +75,10 @@ export default function Slide({ id, title, options, onChangeOrder }: choiceType)
     );
 }
 
-function DraggableRow({ item }: { item: ChoiceItem }) {
+function DraggableRow({ item, onRate }: { item: ChoiceItem; onRate: (id: string, rating: number) => void }) {
     const controls = useDragControls();
+    const [hoveredValue, setHoveredValue] = useState<number | null>(null);
+    const displayValue = hoveredValue ?? item.rating;
 
     return (
         <Reorder.Item
@@ -93,7 +104,60 @@ function DraggableRow({ item }: { item: ChoiceItem }) {
                 <HamburgerSvg className="opacity-80 w-[20px] h-[20px] lg:w-[32px] lg:h-[32px]" />
             </button>
 
-            <p className="w-[90%] font-normal text-xs m-0 md:text-base">{item.label}</p>
+            <p className="flex-1 font-normal text-xs m-0 md:text-base">{item.label}</p>
+            <div
+                className="flex items-center gap-[2px] pr-1 md:pr-2"
+                onMouseLeave={() => setHoveredValue(null)}
+            >
+                {Array.from({ length: STAR_COUNT }, (_, index) => {
+                    const starValue = index + 1;
+                    const isActive = starValue <= displayValue;
+
+                    return (
+                        <button
+                            key={starValue}
+                            type="button"
+                            className="rounded-md p-1 transition-transform focus:outline-none focus:ring-2 focus:ring-black/20 hover:scale-105"
+                            onMouseEnter={() => setHoveredValue(starValue)}
+                            onFocus={() => setHoveredValue(starValue)}
+                            onBlur={() => setHoveredValue(null)}
+                            onClick={() => onRate(item.id, starValue)}
+                            onKeyDown={(event) => {
+                                if (event.key === "Enter" || event.key === " ") {
+                                    event.preventDefault();
+                                    onRate(item.id, starValue);
+                                }
+                            }}
+                            aria-label={`Set rating to ${starValue} star${starValue > 1 ? "s" : ""}`}
+                            aria-pressed={item.rating >= starValue}
+                        >
+                            <StarIcon filled={isActive} />
+                        </button>
+                    );
+                })}
+            </div>
         </Reorder.Item>
+    );
+}
+
+function StarIcon({ filled }: { filled: boolean }) {
+    const fillColor = filled ? "#facc15" : "#e5e7eb";
+    const strokeColor = filled ? "#eab308" : "#94a3b8";
+
+    return (
+        <svg
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+            aria-hidden="true"
+        >
+            <path
+                d="M12 2.75l2.574 5.214 5.753.837-4.163 4.06.983 5.731L12 16.994l-5.147 2.598.983-5.731-4.163-4.06 5.753-.837L12 2.75z"
+                fill={fillColor}
+                stroke={strokeColor}
+                strokeWidth="1"
+            />
+        </svg>
     );
 }

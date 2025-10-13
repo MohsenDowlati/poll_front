@@ -10,6 +10,7 @@ import {
   extractAdminPaginationMeta,
   type AdminUserRecord,
 } from "@/services/admin";
+import {useLocale} from "@/hooks/useLocale";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
@@ -176,8 +177,10 @@ export default function UserTable() {
   const showEmptyState = !isLoading && !error && users.length === 0;
   const tableRows = useMemo(() => users, [users]);
 
+  const {t} = useLocale();
+
   return (
-    <div className="w-full">
+    <div dir="ltr" className="w-full">
       <div className="overflow-hidden rounded-xl border border-gray-200 bg-white dark:border-white/[0.05] dark:bg-white/[0.03]">
         <div className="max-w-full overflow-x-auto">
           <Table>
@@ -187,37 +190,37 @@ export default function UserTable() {
                   isHeader
                   className="px-5 py-3 text-left font-medium text-theme-xs text-gray-500 dark:text-gray-400"
                 >
-                  Name
+                  {t('tables.headers.name')}
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-4 py-3 text-left font-medium text-theme-xs text-gray-500 dark:text-gray-400"
                 >
-                  Phone
+                  {t('tables.headers.phone')}
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-4 py-3 text-left font-medium text-theme-xs text-gray-500 dark:text-gray-400"
                 >
-                  Organization
+                  {t('tables.headers.organization')}
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-4 py-3 text-left font-medium text-theme-xs text-gray-500 dark:text-gray-400"
                 >
-                  Admin Type
+                  {t('tables.headers.admin')}
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-4 py-3 text-left font-medium text-theme-xs text-gray-500 dark:text-gray-400"
                 >
-                  Status
+                  {t('tables.headers.status')}
                 </TableCell>
                 <TableCell
                   isHeader
                   className="px-4 py-3 text-left font-medium text-theme-xs text-gray-500 dark:text-gray-400"
                 >
-                  Actions
+                  {t('tables.headers.actions')}
                 </TableCell>
               </TableRow>
             </TableHeader>
