@@ -1,18 +1,31 @@
+import UserAuth from "@/components/announcer/UserAuth";
 import GridShape from "@/components/common/GridShape";
 import ThemeTogglerTwo from "@/components/common/ThemeTogglerTwo";
 
 import { ThemeProvider } from "@/context/ThemeContext";
+import { extractAdminType } from "@/utils/roles";
+import { decodeJwtPayload } from "@/utils/jwt";
 import Image from "next/image";
 import Link from "next/link";
+import { cookies } from "next/headers";
 import React from "react";
 
-//TODO: logo
+const AUTH_COOKIE_KEY = "authToken";
+const RESTRICTED_ADMIN_TYPES = new Set(["new_user", "canceled_user"]);
 
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
+  const cookieStore = cookies();
+  const token = cookieStore.get(AUTH_COOKIE_KEY)?.value ?? null;
+  const payload = decodeJwtPayload(token);
+  const adminType = extractAdminType(payload)?.toLowerCase();
+  const shouldShowRestriction = Boolean(
+    adminType && RESTRICTED_ADMIN_TYPES.has(adminType)
+  );
+
   return (
     <div className="relative p-6 bg-white z-1 dark:bg-gray-900 sm:p-0">
       <ThemeProvider>
@@ -41,6 +54,13 @@ export default function AuthLayout({
             <ThemeTogglerTwo />
           </div>
         </div>
+        {shouldShowRestriction && (
+          <div className="absolute inset-0 z-50 flex items-center justify-center bg-gray-900/70 px-6 py-8">
+            <div className="w-full max-w-md" role="dialog" aria-modal="true" aria-label="Account access restricted">
+              <UserAuth />
+            </div>
+          </div>
+        )}
       </ThemeProvider>
     </div>
   );

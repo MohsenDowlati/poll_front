@@ -1,6 +1,7 @@
 ﻿"use client";
 
 import { FC, useEffect, useMemo, useState } from "react";
+import {useLocale} from "@/hooks/useLocale";
 
 type PaginationProps = {
   currentPage: number;
@@ -66,6 +67,8 @@ const Pagination: FC<PaginationProps> = ({
   const showLeadingEllipsis = firstVisiblePage > 2;
   const showTrailingEllipsis = lastVisiblePage < totalPages - 1;
 
+  const {t} = useLocale();
+
   return (
     <div className="flex items-center w-full mt-2.5 lg:w-fit">
       <button
@@ -73,7 +76,7 @@ const Pagination: FC<PaginationProps> = ({
         disabled={currentPage === 1}
         className="mr-2.5 flex items-center h-10 justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs hover:bg-gray-50 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03] text-sm"
       >
-        Previous
+        {t('tables.pagination.previous')}
       </button>
       <div className="flex items-center gap-2">
         {showLeadingEllipsis && <span className="px-2">...</span>}
@@ -97,7 +100,7 @@ const Pagination: FC<PaginationProps> = ({
         disabled={currentPage === totalPages}
         className="ml-2.5 flex items-center justify-center rounded-lg border border-gray-300 bg-white px-3.5 py-2.5 text-gray-700 shadow-theme-xs text-sm hover:bg-gray-50 h-10 disabled:opacity-50 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-white/[0.03]"
       >
-        Next
+        {t('tables.pagination.next')}
       </button>
     </div>
   );

@@ -12,6 +12,7 @@ import {
   extractPollPaginationMeta,
   fetchAdminPolls,
 } from "@/services/poll/poll";
+import {useLocale} from "@/hooks/useLocale";
 
 interface FullScreenModalProps {
   sheetId?: string | number;
@@ -164,10 +165,12 @@ export default function FullScreenModal({
 
   const headerTitle = sheetTitle ?? (hasSheetId ? `Sheet ${normalizedSheetId}` : "Select a sheet");
 
+  const { t, language, direction } = useLocale();
+
   return (
     <div>
       <Button size="sm" onClick={handleOpen} disabled={!hasSheetId}>
-        Analyze
+        {t('tables.headers.analyze')}
       </Button>
       <Modal
         isOpen={isFullscreenModalOpen}
@@ -178,7 +181,7 @@ export default function FullScreenModal({
         <div className="fixed top-0 left-0 flex flex-col justify-between w-full h-screen p-6 overflow-x-hidden overflow-y-auto bg-white dark:bg-gray-900 lg:p-10">
           <div>
             <h4 className="font-semibold text-gray-800 mb-1 text-title-sm dark:text-white/90">
-              Poll Results
+              {t('analyze.header')}
             </h4>
             <p className="mb-6 text-sm text-gray-500 dark:text-gray-400">{headerTitle}</p>
 

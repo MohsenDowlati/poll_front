@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import Button from "../../ui/button/Button";
 
@@ -26,6 +26,9 @@ export interface PollDraftData {
 
 interface FormInModalProps {
   onPollCreated?: (poll: PollDraftData) => void;
+  onPollUpdated?: (poll: PollDraftData) => void;
+  editingPoll?: PollDraftData | null;
+  onModalClosed?: () => void;
 }
 
 const initialOptions = ["Option 1", "Option 2", "Option 3"];
@@ -44,13 +47,38 @@ const createId = () => {
   return Math.random().toString(36).slice(2);
 };
 
-const FormInModal: React.FC<FormInModalProps> = ({ onPollCreated }) => {
+const FormInModal: React.FC<FormInModalProps> = ({
+  onPollCreated,
+  onPollUpdated,
+  editingPoll,
+  onModalClosed,
+}) => {
   const { isOpen, openModal, closeModal } = useModal();
 
   const [type, setType] = useState<string>("");
   const [options, setOptions] = useState<string[]>(initialOptions);
   const [category, setCategory] = useState<string>("");
   const [title, setTitle] = useState<string>("");
+
+  const isEditing = Boolean(editingPoll);
+
+  useEffect(() => {
+    if (!editingPoll) {
+      return;
+    }
+
+    setTitle(editingPoll.title);
+    setType(editingPoll.poll_type);
+    setCategory(editingPoll.category);
+    setOptions(
+      editingPoll.poll_type === pollTypes.text
+        ? ["opinion"]
+        : editingPoll.options.length > 0
+          ? [...editingPoll.options]
+          : initialOptions,
+    );
+    openModal();
+  }, [editingPoll, openModal]);
 
   const isTextType = type === pollTypes.text;
 
@@ -116,42 +144,54 @@ const FormInModal: React.FC<FormInModalProps> = ({ onPollCreated }) => {
     }
 
     const poll: PollDraftData = {
-      id: createId(),
+      id: editingPoll?.id ?? createId(),
       title: title.trim(),
       poll_type: type,
       options: sanitizedOptions,
       category,
     };
 
-    onPollCreated?.(poll);
+    if (isEditing) {
+      onPollUpdated?.(poll);
+    } else {
+      onPollCreated?.(poll);
+    }
     resetForm();
     closeModal();
+    onModalClosed?.();
   };
 
   const handleClose = (event?: React.MouseEvent<HTMLButtonElement>) => {
     event?.preventDefault();
     resetForm();
     closeModal();
+    onModalClosed?.();
   };
 
   const categories = [
-    { value: "category 1", label: "category 1" },
-    { value: "category 2", label: "category 2" },
-    { value: "category 3", label: "category 3" },
-    { value: "category 4", label: "category 4" },
-    { value: "category 5", label: "category 5" },
-    { value: "category 6", label: "category 6" },
+    { value: "حوزه ریاست", label: "حوزه ریاست" },
+    { value: "فنی", label: "فنی" },
+    { value: "تشریفات", label: "تشریفات" },
+    { value: "اقتصادی", label: "اقتصادی" },
+    { value: "ارتباطات", label: "ارتباطات" },
+    { value: "توسعه منابع و نوآوری", label: "توسعه منابع و نوآوری" },
+    { value: "بازرسی", label: "بازرسی" },
+    { value: "صیانت", label: "صیانت"    },
+    { value: "امداد نجات", label: "امداد نجات"  },
+    { value: "دبیر همایش", label: "دبیر همایش"  },
   ];
 
   return (
     <>
-      <Button size="sm" onClick={openModal} type="button">
+      <Button size="sm" onClick={openModal} type="button" disabled={isEditing}>
         New Poll
       </Button>
 
       <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[584px] p-5 lg:p-10">
         <form>
-          <h4 className="mb-6 text-lg font-medium text-gray-800 dark:text-white/90">Poll</h4>
+          <h4 className="mb-6 text-lg font-medium text-gray-800 dark:text-white/90">
+            {isEditing ? "Edit Poll" : "Poll"}
+          </h4>
 
           <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
             <div className="col-span-2">
@@ -243,7 +283,7 @@ const FormInModal: React.FC<FormInModalProps> = ({ onPollCreated }) => {
             </Button>
 
             <Button size="sm" onClick={handleSave} disabled={!canSave} type="button">
-              Save Changes
+              {isEditing ? "Update Poll" : "Save Changes"}
             </Button>
           </div>
         </form>
