@@ -12,7 +12,10 @@ import {
   extractPollPaginationMeta,
   fetchAdminPolls,
 } from "@/services/poll/poll";
-import {useLocale} from "@/hooks/useLocale";
+import { useLocale } from "@/hooks/useLocale";
+import { getAuthTokenFromCookie } from "@/utils/authToken";
+import { decodeJwtPayload } from "@/utils/jwt";
+import { isSuperAdmin } from "@/utils/roles";
 
 interface FullScreenModalProps {
   sheetId?: string | number;
@@ -42,6 +45,7 @@ export default function FullScreenModal({
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [canExportResults, setCanExportResults] = useState(false);
 
   const loadPolls = useCallback(
     async (pageToLoad: number) => {
@@ -121,14 +125,52 @@ export default function FullScreenModal({
     void loadPolls(page);
   }, [isFullscreenModalOpen, page, loadPolls]);
 
+  useEffect(() => {
+    const token = getAuthTokenFromCookie();
+    if (!token) {
+      setCanExportResults(false);
+      return;
+    }
+
+    const payload = decodeJwtPayload(token);
+    setCanExportResults(isSuperAdmin(payload));
+  }, []);
+
   const uniqueCategories = useMemo(() => {
     const set = new Set<string>();
     polls.forEach((poll) => {
-      if (poll.category) {
-        set.add(poll.category);
+      const trimmedCategories = (poll.category || [])
+        .map((category) => category.trim())
+        .filter((category) => category.length > 0);
+
+      if (trimmedCategories.length === 0) {
+        set.add("Uncategorized");
+        return;
       }
+
+      trimmedCategories.forEach((category) => set.add(category));
     });
-    return Array.from(set);
+    return Array.from(set).sort((a, b) => a.localeCompare(b));
+  }, [polls]);
+
+  const pollsByCategory = useMemo(() => {
+    const map = new Map<string, AdminPollSummary[]>();
+
+    polls.forEach((poll) => {
+      const trimmedCategories = (poll.category || [])
+        .map((category) => category.trim())
+        .filter((category) => category.length > 0);
+
+      const categories = trimmedCategories.length > 0 ? trimmedCategories : ["Uncategorized"];
+
+      categories.forEach((category) => {
+        const existing = map.get(category) ?? [];
+        existing.push(poll);
+        map.set(category, existing);
+      });
+    });
+
+    return map;
   }, [polls]);
 
   const totalParticipants = useMemo(
@@ -158,14 +200,14 @@ export default function FullScreenModal({
     openFullscreenModal();
   };
 
-  const handleSave = () => {
-    console.log("Saving changes...");
+  const handleSave = (format: "pdf" | "csv") => {
+    console.log(`Saving changes as ${format.toUpperCase()}...`);
     closeFullscreenModal();
   };
 
   const headerTitle = sheetTitle ?? (hasSheetId ? `Sheet ${normalizedSheetId}` : "Select a sheet");
 
-  const { t, language, direction } = useLocale();
+  const { t } = useLocale();
 
   return (
     <div>
@@ -218,17 +260,36 @@ export default function FullScreenModal({
                   </p>
                 )}
 
-                {polls.map((poll) => (
-                  <PollResult
-                    key={poll.id}
-                    title={poll.title}
-                    options={poll.options}
-                    votes={poll.votes}
-                    category={poll.category}
-                    type={poll.type}
-                    participants={poll.participants}
-                  />
-                ))}
+                {uniqueCategories.map((category) => {
+                  const categoryPolls = pollsByCategory.get(category) ?? [];
+                  if (categoryPolls.length === 0) {
+                    return null;
+                  }
+
+                  return (
+                    <section key={category} className="space-y-4 rounded-lg border border-gray-200 p-4 dark:border-gray-800">
+                      <header className="flex items-center justify-between gap-2">
+                        <h5 className="text-base font-semibold text-gray-800 dark:text-white/90">{category}</h5>
+                        <span className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                          {categoryPolls.length} poll{categoryPolls.length > 1 ? "s" : ""}
+                        </span>
+                      </header>
+                      <div className="space-y-4">
+                        {categoryPolls.map((poll) => (
+                          <PollResult
+                            key={`${category}-${poll.id}`}
+                            title={poll.title}
+                            options={poll.options}
+                            votes={poll.votes}
+                            category={poll.category}
+                            type={poll.type}
+                            participants={poll.participants}
+                          />
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })}
               </div>
             ) : (
               <p className="text-sm text-gray-500 dark:text-gray-400">
@@ -258,12 +319,16 @@ export default function FullScreenModal({
               <Button size="sm" variant="outline" onClick={closeFullscreenModal}>
                 Close
               </Button>
-              <Button size="sm" onClick={handleSave}>
-                Save as PDF
-              </Button>
-              <Button size="sm" onClick={handleSave}>
-                Save as CSV
-              </Button>
+              {canExportResults && (
+                <>
+                  <Button size="sm" onClick={() => handleSave("pdf")}>
+                    Save as PDF
+                  </Button>
+                  <Button size="sm" onClick={() => handleSave("csv")}>
+                    Save as CSV
+                  </Button>
+                </>
+              )}
             </div>
           </div>
         </div>

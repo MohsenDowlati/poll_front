@@ -13,11 +13,20 @@ import Badge from '../ui/badge/Badge';
 import Label from '@/components/form/Label';
 import { useLocale } from '@/hooks/useLocale';
 import {
-  fetchSheets,
+  deleteSheet,
   extractSheetList,
   extractSheetPaginationMeta,
+  fetchSheets,
+  finishSheet,
+  type SheetPollRecord,
   type SheetRecord,
 } from '@/services/sheet/sheet';
+import {
+  deletePoll,
+  extractPollPaginationMeta,
+  extractPolls,
+  fetchAdminPolls,
+} from '@/services/poll/poll';
 import { getAuthTokenFromCookie } from '@/utils/authToken';
 import { decodeJwtPayload } from '@/utils/jwt';
 import { isSuperAdmin } from '@/utils/roles';
@@ -26,6 +35,9 @@ import FullScreenModal from "@/components/example/ModalExample/FullScreenModal";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 15;
+const ADMIN_POLL_PAGE_SIZE = 200;
+const DELETABLE_STATUSES = new Set(['finished', 'rejected']);
+const FINISHABLE_STATUSES = new Set(['published']);
 
 const toTitleCase = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -113,7 +125,7 @@ const resolveStatusMeta = (
     return { label: translate(translationKey), color: 'warning' as const };
   }
 
-  if (['approved', 'published', 'active', 'verified'].includes(normalized)) {
+  if (['approved', 'published', 'active', 'verified', 'finished'].includes(normalized)) {
     return { label: translate(translationKey), color: 'success' as const };
   }
 
@@ -180,6 +192,29 @@ const CloseIcon = () => (
   </svg>
 );
 
+const FinishIcon = () => (
+  <svg
+    width="16"
+    height="16"
+    viewBox="0 0 16 16"
+    fill="none"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      d="M8 14.5C4.41015 14.5 1.5 11.5899 1.5 8C1.5 4.41015 4.41015 1.5 8 1.5C11.5899 1.5 14.5 4.41015 14.5 8C14.5 11.5899 11.5899 14.5 8 14.5Z"
+      stroke="currentColor"
+      strokeWidth="1.2"
+    />
+    <path
+      d="M5.75 8.08333L7.10638 9.43971C7.19969 9.53302 7.35031 9.53302 7.44362 9.43971L10.25 6.63333"
+      stroke="currentColor"
+      strokeWidth="1.2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+    />
+  </svg>
+);
+
 const TrashIcon = () => (
   <svg
     width="16"
@@ -207,8 +242,11 @@ export default function RecentOrders() {
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [deletingSheetIds, setDeletingSheetIds] = useState<Record<string, boolean>>({});
+  const [finishingSheetIds, setFinishingSheetIds] = useState<Record<string, boolean>>({});
   const [canManageSheets, setCanManageSheets] = useState(false);
-  const { t, language, direction } = useLocale();
+  const { t, language } = useLocale();
   const locale = language === 'fa' ? 'fa-IR' : 'en-US';
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
   const formatNumber = useCallback((value: number) => numberFormatter.format(value), [numberFormatter]);
@@ -225,6 +263,7 @@ export default function RecentOrders() {
   }, [router]);
 
   useEffect(() => {
+    setMutationError(null);
     let isMounted = true;
 
     const loadSheets = async () => {
@@ -328,6 +367,216 @@ export default function RecentOrders() {
   }, [formatNumber, page, pageSize, sheets.length, t, totalItems]);
 
   const showEmptyState = !isLoading && sheets.length === 0 && !error;
+
+  const handleRowClick = useCallback(
+    (event: React.MouseEvent<HTMLTableRowElement>, identifier: string | number | undefined) => {
+      if (identifier === undefined || identifier === null) {
+        return;
+      }
+
+      const target = event.target as HTMLElement | null;
+      if (
+        target &&
+        target.closest('button, a, [role="button"], input, textarea, select')
+      ) {
+        return;
+      }
+
+      const link = `localhost:3000/poll/${String(identifier)}`;
+      const fallbackCopy = (value: string) => {
+        const textarea = document.createElement('textarea');
+        textarea.value = value;
+        textarea.setAttribute('readonly', '');
+        textarea.style.position = 'absolute';
+        textarea.style.left = '-9999px';
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textarea);
+      };
+
+      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        navigator.clipboard.writeText(link).catch(() => {
+          fallbackCopy(link);
+        });
+      } else {
+        fallbackCopy(link);
+      }
+    },
+    [],
+  );
+
+  const handleFinishSheet = useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>, sheet: SheetRecord) => {
+      event.stopPropagation();
+      setMutationError(null);
+
+      const identifier = resolveSheetIdentifier(sheet);
+      if (identifier === undefined || identifier === null) {
+        return;
+      }
+
+      const normalizedStatus = (sheet.status ?? '').toString().toLowerCase();
+      if (!FINISHABLE_STATUSES.has(normalizedStatus)) {
+        return;
+      }
+
+      const trackerKey = String(identifier);
+      setFinishingSheetIds((prev) => ({ ...prev, [trackerKey]: true }));
+
+      try {
+        await finishSheet(identifier);
+        setSheets((prevSheets) =>
+          prevSheets.map((candidate) => {
+            if (resolveSheetIdentifier(candidate) === identifier) {
+              return {
+                ...candidate,
+                status: 'finished',
+              };
+            }
+            return candidate;
+          }),
+        );
+      } catch (finishError) {
+        console.error('Failed to finish sheet', finishError);
+        setMutationError(
+          t('tables.error.finishSheet', {
+            defaultValue: 'Failed to mark sheet as finished. Please try again.',
+          }),
+        );
+      } finally {
+        setFinishingSheetIds((prev) => {
+          const next = { ...prev };
+          delete next[trackerKey];
+          return next;
+        });
+      }
+    },
+    [setSheets, setMutationError, setFinishingSheetIds, t],
+  );
+
+  const handleDeleteSheet = useCallback(
+    async (event: React.MouseEvent<HTMLButtonElement>, sheet: SheetRecord) => {
+      event.stopPropagation();
+      setMutationError(null);
+
+      const identifier = resolveSheetIdentifier(sheet);
+      if (identifier === undefined || identifier === null) {
+        return;
+      }
+
+      const normalizedStatus = (sheet.status ?? '').toString().toLowerCase();
+      if (!DELETABLE_STATUSES.has(normalizedStatus)) {
+        return;
+      }
+
+      const trackerKey = String(identifier);
+      setDeletingSheetIds((prev) => ({ ...prev, [trackerKey]: true }));
+
+      try {
+        const pollIds = new Set<string | number>();
+
+        if (Array.isArray(sheet.polls)) {
+          for (const rawPoll of sheet.polls) {
+            const pollRecord = rawPoll as SheetPollRecord;
+            const pollId = pollRecord?.id;
+            if (pollId !== undefined && pollId !== null) {
+              pollIds.add(pollId);
+            }
+          }
+        }
+
+        if (pollIds.size === 0) {
+          let currentPage = 1;
+          let keepFetching = true;
+
+          while (keepFetching) {
+            const { status, data } = await fetchAdminPolls({
+              id: identifier,
+              page: currentPage,
+              page_size: ADMIN_POLL_PAGE_SIZE,
+            });
+
+            if (status < 200 || status >= 300) {
+              throw new Error(`Unexpected status ${status} while fetching polls for deletion.`);
+            }
+
+            const fetchedPolls = extractPolls(data);
+            for (const poll of fetchedPolls) {
+              const pollId = poll?.id;
+              if (pollId !== undefined && pollId !== null) {
+                pollIds.add(pollId);
+              }
+            }
+
+            const meta = extractPollPaginationMeta(data);
+            const effectivePageSize =
+              meta.pageSize && meta.pageSize > 0 ? meta.pageSize : ADMIN_POLL_PAGE_SIZE;
+            const resolvedTotalPages =
+              meta.totalPages && meta.totalPages > 0 ? meta.totalPages : undefined;
+
+            if (resolvedTotalPages !== undefined) {
+              keepFetching = currentPage < resolvedTotalPages;
+            } else if (fetchedPolls.length === 0 || fetchedPolls.length < effectivePageSize) {
+              keepFetching = false;
+            } else {
+              currentPage += 1;
+              continue;
+            }
+
+            if (keepFetching) {
+              currentPage += 1;
+            }
+          }
+        }
+
+        if (pollIds.size === 0) {
+          await deletePoll(identifier);
+        } else {
+          for (const pollId of pollIds) {
+            await deletePoll(pollId);
+          }
+        }
+
+        await deleteSheet(identifier);
+
+        setSheets((prevSheets) => {
+          const updated = prevSheets.filter(
+            (candidate) => resolveSheetIdentifier(candidate) !== identifier,
+          );
+
+          if (updated.length !== prevSheets.length) {
+            if (updated.length === 0) {
+              setPage((currentPage) => (currentPage > 1 ? currentPage - 1 : currentPage));
+            }
+          }
+
+          return updated;
+        });
+
+        setTotalItems((prevTotal) => {
+          if (typeof prevTotal === 'number') {
+            return Math.max(prevTotal - 1, 0);
+          }
+          return prevTotal;
+        });
+      } catch (deleteError) {
+        console.error('Failed to delete sheet', deleteError);
+        setMutationError(
+          t('tables.error.deleteSheet', {
+            defaultValue: 'Failed to delete sheet. Please try again.',
+          }),
+        );
+      } finally {
+        setDeletingSheetIds((prev) => {
+          const next = { ...prev };
+          delete next[trackerKey];
+          return next;
+        });
+      }
+    },
+    [setPage, setSheets, setTotalItems, setMutationError, setDeletingSheetIds, t],
+  );
 
   return (
     <div dir={'ltr'} className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
@@ -435,11 +684,24 @@ export default function RecentOrders() {
               const statusMeta = resolveStatusMeta(sheet.status as string | undefined, t);
               const normalizedStatus = (sheet.status ?? '').toString().toLowerCase();
               const isPending = normalizedStatus === 'pending';
+              const isDeletable = DELETABLE_STATUSES.has(normalizedStatus);
+              const isFinishable = FINISHABLE_STATUSES.has(normalizedStatus);
               const sheetIdentifier = resolveSheetIdentifier(sheet);
+              const sheetIdKey =
+                sheetIdentifier !== undefined && sheetIdentifier !== null
+                  ? String(sheetIdentifier)
+                  : undefined;
+              const isDeleting = sheetIdKey ? deletingSheetIds[sheetIdKey] === true : false;
+              const isFinishing = sheetIdKey ? finishingSheetIds[sheetIdKey] === true : false;
+              const isBusy = isDeleting || isFinishing;
               const resolvedName = resolveName(sheet, t);
 
               return (
-                <TableRow key={sheet.id ?? resolvedName}>
+                <TableRow
+                  key={sheet.id ?? resolvedName}
+                  onClick={(event) => handleRowClick(event, sheetIdentifier)}
+                  className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.04]"
+                >
                   <TableCell className="py-3">
                     <div className="flex items-center gap-3">
                       <div>
@@ -488,15 +750,34 @@ export default function RecentOrders() {
                             </button>
                           </>
                         ) : (
-                          <button
-                            type="button"
-                            className="inline-flex"
-                            aria-label={t('actions.delete')}
-                          >
-                            <Badge size="sm" color="info">
-                              <TrashIcon />
-                            </Badge>
-                          </button>
+                          <>
+                            {isFinishable && (
+                              <button
+                                type="button"
+                                className="inline-flex disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label={t('actions.finish', { defaultValue: 'Finish' })}
+                                onClick={(event) => handleFinishSheet(event, sheet)}
+                                disabled={isBusy}
+                              >
+                                <Badge size="sm" color="success">
+                                  <FinishIcon />
+                                </Badge>
+                              </button>
+                            )}
+                            {isDeletable && (
+                              <button
+                                type="button"
+                                className="inline-flex disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label={t('actions.delete')}
+                                onClick={(event) => handleDeleteSheet(event, sheet)}
+                                disabled={isBusy}
+                              >
+                                <Badge size="sm" color="info">
+                                  <TrashIcon />
+                                </Badge>
+                              </button>
+                            )}
+                          </>
                         )}
                       </div>
                     </TableCell>
@@ -526,6 +807,17 @@ export default function RecentOrders() {
                   className="py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                 >
                   {t('tables.empty')}
+                </TableCell>
+              </TableRow>
+            )}
+
+            {mutationError && (
+              <TableRow>
+                <TableCell
+                  colSpan={canManageSheets ? 6 : 5}
+                  className="py-6 text-center text-sm text-error-500"
+                >
+                  {mutationError}
                 </TableCell>
               </TableRow>
             )}

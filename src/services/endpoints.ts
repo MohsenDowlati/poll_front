@@ -12,17 +12,20 @@
     },
     admin: {
         users: '/admin/users',
+        updateStatus: '/admin/users/status',
     },
     sheet: {
         fetch: '/sheet/fetch',
         create: '/sheet/create',
         delete: '/sheet/delete',
+        finish: '/sheet/finish',
     },
     poll: {
         fetch: '/client/fetch',
         adminFetch: '/admin/fetch',
         submit: '/submit',
         create: '/create',
+        delete: '/delete',
     },
 };
 

@@ -49,7 +49,7 @@ export interface SheetPollPayload {
   title: string;
   poll_type: string;
   options: string[];
-  category: string;
+  category: string[];
   description?: string;
 }
 
@@ -65,7 +65,7 @@ export interface CreateSheetPollPayload {
   title: string;
   poll_type: string;
   options: string[];
-  category: string;
+  category: string[];
   description?: string;
 }
 
@@ -153,7 +153,9 @@ export const createSheetPoll = (payload: CreateSheetPollPayload) => {
   formData.append('sheet_id', String(payload.sheet_id));
   formData.append('title', payload.title);
   formData.append('poll_type', payload.poll_type);
-  formData.append('category', payload.category);
+  for (const category of payload.category) {
+    formData.append('category', category);
+  }
   if (payload.description !== undefined) {
     formData.append('description', payload.description);
   }
@@ -172,6 +174,20 @@ export const deleteSheet = (id: string | number) => {
   return http.put<SheetMutationResponse>(
     endpoints.sheet.delete,
     null,
+    {
+      params: {
+        id,
+      },
+    },
+  );
+};
+
+export const finishSheet = (id: string | number) => {
+  return http.put<SheetMutationResponse>(
+    endpoints.sheet.finish,
+    {
+      status: 'finished',
+    },
     {
       params: {
         id,

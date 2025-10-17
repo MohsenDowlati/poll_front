@@ -9,7 +9,7 @@ import PhoneInput from '@/components/form/group-input/PhoneInput';
 import {extractPollPaginationMeta, extractPolls, fetchPolls, PollRecord, submitPollVotes} from '@/services/poll/poll';
 import Text from '@/components/client/Text';
 import Single from '@/components/client/Single';
-import {buildMultiChoiceVotes, buildOpinionVotes, buildSingleChoiceVotes, buildSlideVotes, inferPollType} from '@/utils/votes';
+import {buildMultiChoiceVotes, buildOpinionVotes, buildSingleChoiceVotes, inferPollType} from '@/utils/votes';
 
 interface SheetInfo {
     id?: string;
@@ -61,8 +61,7 @@ const Poll = ({data, onChange}: {data: PollRecord; onChange: (payload: { id: str
                     id={idStr}
                     title={title}
                     options={options}
-                    onChangeOrder={(orderIndices) => {
-                        const votes = buildSlideVotes(options.length, orderIndices);
+                    onChangeVotes={(votes) => {
                         onChange({ id: idStr, votes });
                     }}
                 />
@@ -340,7 +339,7 @@ export default function PollMaker({id}: {id: string}) {
                 )}
                 <div className="sr-only">Items: {polls.length} Total pages: {totalPages}</div>
                 <h1 className="text-3xl font-bold text-center mb-8 text-blue-950">
-                    {sheetInfo.title ?? 'some titles and blah blah blah'}
+                    {sheetInfo.title ?? 'سامانه نظرسنجی سالن همایش‌های صدا و سیما'}
                 </h1>
                 <article className="bg-[#6bbf6e] rounded-[21px] shadow-lg mt-[24px] py-[44px] w-full lg:w-[90%]">
                     {polls.length > 0 ? (

@@ -6,8 +6,8 @@ interface ComponentCardProps {
     title: string;
     options: string[];
     votes: number[];
-    category: string;
-    className?: string; // Additional custom classes for styling
+    category: string[];
+    className?: string;
     type: string;
     participants: number;
 }
@@ -26,6 +26,7 @@ const PollResult: React.FC<ComponentCardProps> = ({
     const isSingleType = normalizedType === "single" || normalizedType === "single_choice";
     const isMultiType = normalizedType === "multiple" || normalizedType === "multi_choice";
     const isSlideType = normalizedType === "slide" || normalizedType === "slider";
+    const categoriesLabel = category.length > 0 ? category.join(", ") : undefined;
 
 
 
@@ -36,7 +37,14 @@ const PollResult: React.FC<ComponentCardProps> = ({
                 <div className="flex items-start justify-between gap-3">
                     <h3 className="text-base font-medium text-gray-800 dark:text-white/90 lg:text-2xl">{title}</h3>
                 </div>
-                <p className="text-sm text-gray-500 dark:text-gray-400 text-right">total votes: {participants}</p>
+                <div className="flex flex-col items-end gap-1 text-sm text-gray-500 dark:text-gray-400">
+                    {categoriesLabel ? (
+                        <span className="uppercase tracking-wide text-xs text-gray-400 dark:text-gray-500">
+                            {categoriesLabel}
+                        </span>
+                    ) : null}
+                    <span>total votes: {participants}</span>
+                </div>
             </div>
             <div>
                 <div className="p-4 border-t border-gray-100 dark:border-gray-800 sm:p-6">

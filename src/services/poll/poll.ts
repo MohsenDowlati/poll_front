@@ -16,7 +16,7 @@ export interface PollRecord extends Record<string, unknown> {
 }
 
 export interface AdminPollRecord extends PollRecord {
-  category?: string;
+  category?: string | string[];
   participant?: number | string;
   participants?: number | string;
   responses?: Array<unknown>;
@@ -27,7 +27,7 @@ export interface AdminPollRecord extends PollRecord {
 export interface AdminPollSummary {
   id: string;
   title: string;
-  category: string;
+  category: string[];
   description?: string;
   type: string;
   options: string[];
@@ -64,6 +64,11 @@ export interface SubmitPollVotesPayload {
 }
 
 export interface SubmitPollVotesResponse extends Record<string, unknown> {
+  message?: string;
+  poll?: PollRecord;
+}
+
+export interface PollMutationResponse extends Record<string, unknown> {
   message?: string;
   poll?: PollRecord;
 }
@@ -161,6 +166,18 @@ export const submitPollVotes = (payload: SubmitPollVotesPayload) => {
   return http.post<SubmitPollVotesResponse>(endpoints.poll.submit, payload);
 };
 
+export const deletePoll = (id: string | number) => {
+  return http.put<PollMutationResponse>(
+    endpoints.poll.delete,
+    null,
+    {
+      params: {
+        id,
+      },
+    },
+  );
+};
+
 export const extractPolls = (
   payload: PollListResponse | PollRecord[] | null | undefined,
 ): PollRecord[] => {
@@ -222,7 +239,13 @@ export const extractAdminPolls = (
     const idValue = record.id ?? index;
     const id = toTrimmedString(idValue) || String(index + 1);
     const title = toTrimmedString(record.title) || `Poll ${index + 1}`;
-    const category = toTrimmedString((record as Record<string, unknown>).category) || 'Uncategorized';
+    const rawCategory = (record as Record<string, unknown>).category;
+    const category = Array.isArray(rawCategory)
+      ? toStringArray(rawCategory)
+      : (() => {
+          const single = toTrimmedString(rawCategory);
+          return single ? [single] : [];
+        })();
     const type = toTrimmedString(record.poll_type ?? record.type) || 'unknown';
     const descriptionValue = toTrimmedString(record.description);
     const optionsSource = Array.isArray(record.options)

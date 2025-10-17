@@ -1,52 +1,102 @@
 'use client';
 
-import React, {JSX, useEffect, useMemo, useState} from "react";
+import React, {JSX, useEffect, useRef, useState} from "react";
 import { Reorder, useDragControls } from "framer-motion";
 
 
-function HamburgerSvg({className}: {className: string}) {
-    return (
-        <svg
-            height="32px"
-            width="32px"
-            viewBox="0 0 32 32"
-            className={className}
-            xmlns="http://www.w3.org/2000/svg"
-        >
-            <path d="M4,10h24c1.104,0,2-0.896,2-2s-0.896-2-2-2H4C2.896,6,2,6.896,2,8S2.896,10,4,10z
-               M28,14H4c-1.104,0-2,0.896-2,2s0.896,2,2,2h24c1.104,0,2-0.896,2-2S29.104,14,28,14z
-               M28,22H4c-1.104,0-2,0.896-2,2s0.896,2,2,2h24c1.104,0,2-0.896,2-2S29.104,22,28,22z"/>
-        </svg>
-    )
-}
 
 const STAR_COUNT = 5;
 
-type ChoiceItem = { id: string; label: string; rating: number };
+type ChoiceItem = { id: string; label: string; rating: number; originalIndex: number };
 interface choiceType {
     id: string;
     title: string;
     options: string[];
-    onChangeOrder?: (orderIndices: number[]) => void;
+    onChangeVotes?: (votes: number[]) => void;
 }
 
-export default function Slide({ id, title, options, onChangeOrder }: choiceType):JSX.Element {
-    // build stable ids for options (even if labels repeat)
-    const initialItems = useMemo<ChoiceItem[]>(
-        () => options.map((label, idx) => ({ id: `${id}-${idx}-${label}`, label, rating: 0 })),
-        [options, id]
-    );
+const mapOptionsToItems = (options: string[], pollId: string): ChoiceItem[] =>
+    options.map((label, idx) => ({
+        id: `${pollId}-${idx}-${label}`,
+        label,
+        rating: 0,
+        originalIndex: idx,
+    }));
 
-    const [items, setItems] = useState<ChoiceItem[]>(initialItems);
+const buildVotesFromItems = (items: ChoiceItem[], totalOptions: number): number[] => {
+    const votes = Array.from({ length: totalOptions }, () => 0);
+    for (const item of items) {
+        const idx = item.originalIndex;
+        if (Number.isInteger(idx) && idx >= 0 && idx < votes.length) {
+            votes[idx] = item.rating;
+        }
+    }
+    return votes;
+};
 
-    // keep local list in sync if `options` prop changes
-    useEffect(() => setItems(initialItems), [initialItems]);
+export default function Slide({ id, title, options, onChangeVotes }: choiceType):JSX.Element {
+    const [items, setItems] = useState<ChoiceItem[]>(() => mapOptionsToItems(options, id));
+    const optionCount = options.length;
+    const hasInteractedRef = useRef(false);
+    const latestOnChangeRef = useRef(onChangeVotes);
+
+    useEffect(() => {
+        latestOnChangeRef.current = onChangeVotes;
+    }, [onChangeVotes]);
+
+    useEffect(() => {
+        setItems((prev) => {
+            const next = mapOptionsToItems(options, id);
+            const isSameLength = prev.length === next.length;
+            const hasSameStructure =
+                isSameLength &&
+                prev.every((item, index) => {
+                    const candidate = next[index];
+                    return (
+                        candidate &&
+                        candidate.label === item.label &&
+                        candidate.originalIndex === item.originalIndex
+                    );
+                });
+
+            if (hasSameStructure) {
+                return prev;
+            }
+
+            hasInteractedRef.current = false;
+            return next;
+        });
+    }, [id, options]);
+
+    useEffect(() => {
+        if (!hasInteractedRef.current || !latestOnChangeRef.current) {
+            return;
+        }
+        latestOnChangeRef.current(buildVotesFromItems(items, optionCount));
+    }, [items, optionCount]);
 
     const handleRate = (itemId: string, rating: number) => {
         const nextRating = Math.max(1, Math.min(STAR_COUNT, rating));
-        setItems((prev) =>
-            prev.map((it) => (it.id === itemId ? { ...it, rating: nextRating } : it))
-        );
+
+        setItems((prev) => {
+            let changed = false;
+            const updated = prev.map((it) => {
+                if (it.id !== itemId) {
+                    return it;
+                }
+                if (it.rating === nextRating) {
+                    return it;
+                }
+                changed = true;
+                return { ...it, rating: nextRating };
+            });
+
+            if (changed) {
+                hasInteractedRef.current = true;
+                return updated;
+            }
+            return prev;
+        });
     };
 
     return (
@@ -59,9 +109,8 @@ export default function Slide({ id, title, options, onChangeOrder }: choiceType)
                 axis="y"
                 values={items}
                 onReorder={(next) => {
+                    hasInteractedRef.current = true;
                     setItems(next);
-                    const orderIndices = next.map((it) => Number(it.id.split('-')[1]));
-                    onChangeOrder?.(orderIndices);
                 }}
                 className="my-[8px] mx-[2px] flex flex-col gap-2 lg:mx-[18px]"
             >
@@ -90,23 +139,9 @@ function DraggableRow({ item, onRate }: { item: ChoiceItem; onRate: (id: string,
             whileDrag={{ scale: 1.02, boxShadow: "0 12px 28px rgba(0,0,0,0.18)" }}
             className="flex items-center gap-3 rounded-xl bg-white/70 hover:bg-white/90 px-1 py-2 md:py-3 select-none md:px-3"
         >
-            <button
-                type="button"
-                onPointerDown={(e) => {
-                    // start drag with left mouse / touch / pen
-                    if (e.button === 0 || e.pointerType !== "mouse") {
-                        controls.start(e);
-                    }
-                }}
-                className="p-1 md:p-2 cursor-grab active:cursor-grabbing rounded-lg focus:outline-none focus:ring-2 focus:ring-black/20"
-                aria-label="Drag to reorder"
-            >
-                <HamburgerSvg className="opacity-80 w-[20px] h-[20px] lg:w-[32px] lg:h-[32px]" />
-            </button>
-
             <p className="flex-1 font-normal text-xs m-0 md:text-base">{item.label}</p>
             <div
-                className="flex items-center gap-[2px] pr-1 md:pr-2"
+                className="flex items-center gap-[0.5px] pr-1 md:pr-2 md:gap-[2px]"
                 onMouseLeave={() => setHoveredValue(null)}
             >
                 {Array.from({ length: STAR_COUNT }, (_, index) => {

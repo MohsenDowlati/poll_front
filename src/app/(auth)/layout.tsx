@@ -13,12 +13,12 @@ import React from "react";
 const AUTH_COOKIE_KEY = "authToken";
 const RESTRICTED_ADMIN_TYPES = new Set(["new_user", "canceled_user"]);
 
-export default function AuthLayout({
+export default async function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get(AUTH_COOKIE_KEY)?.value ?? null;
   const payload = decodeJwtPayload(token);
   const adminType = extractAdminType(payload)?.toLowerCase();

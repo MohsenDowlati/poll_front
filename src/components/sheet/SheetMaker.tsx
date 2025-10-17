@@ -25,11 +25,13 @@ const isTextPollType = (type: string | undefined | null): boolean => {
 };
 
 const mapPollToPayload = (poll: DraftPoll): SheetPollPayload => {
+  const normalizedOptions = isTextPollType(poll.poll_type) ? ["opinion"] : poll.options;
+  const normalizedCategories = Array.isArray(poll.category) ? poll.category : [];
   return {
     title: poll.title,
     poll_type: poll.poll_type,
-    options: isTextPollType(poll.poll_type) ? ["opinion"] : poll.options,
-    category: poll.category
+    options: normalizedOptions,
+    category: normalizedCategories,
   };
 };
 
@@ -47,6 +49,7 @@ export default function SheetMaker() {
     (poll: PollDraftData): DraftPoll => ({
       ...poll,
       options: isTextPollType(poll.poll_type) ? ["opinion"] : poll.options,
+      category: Array.isArray(poll.category) ? poll.category : [],
     }),
     [],
   );
@@ -106,11 +109,12 @@ export default function SheetMaker() {
     setErrorMessage(null);
     setSuccessMessage(null);
 
+    const pollsPayload = polls.map(mapPollToPayload);
     const payload: CreateSheetPayload = {
       title: sheetName.trim(),
-      venue,
+      venue: venue.trim(),
       is_phone_required: isPhoneRequired,
-      polls: polls.length ? polls.map(mapPollToPayload) : undefined,
+      polls: pollsPayload,
     };
 
     try {
@@ -182,7 +186,7 @@ export default function SheetMaker() {
               key={poll.id}
               title={poll.title}
               options={pollOptions}
-              category={poll.category || ""}
+              category={poll.category ?? []}
               type={poll.poll_type}
               onDelete={() => handlePollDelete(poll.id)}
               onEdit={()=>handlePollEdit(poll.id)}

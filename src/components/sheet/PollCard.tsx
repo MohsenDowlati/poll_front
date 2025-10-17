@@ -3,8 +3,8 @@ import React from "react";
 interface ComponentCardProps {
   title: string;
   options: string[];
-  category: string;
-  className?: string; // Additional custom classes for styling
+  category: string[];
+  className?: string;
   type: string;
   onDelete?: () => void;
   onEdit?: () => void;
@@ -21,6 +21,7 @@ const PollCard: React.FC<ComponentCardProps> = ({
 }) => {
   const normalizedType = type.toLowerCase();
   const isTextType = normalizedType === "text" || normalizedType === "opinion";
+  const categoriesLabel = category.length > 0 ? category.join(", ") : "Uncategorized";
 
   return (
     <div className={`rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] ${className}`}>
@@ -79,7 +80,7 @@ const PollCard: React.FC<ComponentCardProps> = ({
             ) : null}
           </div>
         </div>
-        <p className="text-sm text-gray-500 dark:text-gray-400 text-right">{category}</p>
+        <p className="text-sm text-gray-500 dark:text-gray-400 text-right">{categoriesLabel}</p>
       </div>
 
       <div className="p-4 border-t border-gray-100 dark:border-gray-800 sm:p-6">

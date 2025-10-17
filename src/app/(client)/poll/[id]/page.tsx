@@ -7,8 +7,8 @@ export const metadata: Metadata = {
     description: "This is Next.js Client page",
 };
 
-export default function Client({ params }:any) {
-    const { id } = params;
+export default async function Client({ params }: { params: Promise<{ id: string }> }) {
+    const { id } = await params;
 
     return (
         <article>

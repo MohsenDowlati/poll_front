@@ -3,25 +3,20 @@
 import React, { useEffect, useMemo, useState } from "react";
 
 import Button from "../../ui/button/Button";
-
 import { Modal } from "../../ui/modal";
-
 import Label from "../../form/Label";
-
 import Input from "../../form/input/InputField";
 
 import { useModal } from "@/hooks/useModal";
-
 import Checkbox from "@/components/form/input/Checkbox";
-
-import Select from "@/components/form/Select";
+import MultiSelect from "@/components/form/MultiSelect";
 
 export interface PollDraftData {
   id: string;
   title: string;
   poll_type: string;
   options: string[];
-  category: string;
+  category: string[];
 }
 
 interface FormInModalProps {
@@ -40,6 +35,19 @@ const pollTypes = {
   text: "opinion",
 } as const;
 
+const categoryOptions = [
+  { value: "business", text: "Business" },
+  { value: "community", text: "Community" },
+  { value: "education", text: "Education" },
+  { value: "entertainment", text: "Entertainment" },
+  { value: "environment", text: "Environment" },
+  { value: "health", text: "Health" },
+  { value: "politics", text: "Politics" },
+  { value: "sports", text: "Sports" },
+  { value: "technology", text: "Technology" },
+  { value: "other", text: "Other" },
+];
+
 const createId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
     return crypto.randomUUID();
@@ -57,7 +65,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
 
   const [type, setType] = useState<string>("");
   const [options, setOptions] = useState<string[]>(initialOptions);
-  const [category, setCategory] = useState<string>("");
+  const [category, setCategory] = useState<string[]>([]);
   const [title, setTitle] = useState<string>("");
 
   const isEditing = Boolean(editingPoll);
@@ -69,7 +77,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
 
     setTitle(editingPoll.title);
     setType(editingPoll.poll_type);
-    setCategory(editingPoll.category);
+    setCategory(editingPoll.category ?? []);
     setOptions(
       editingPoll.poll_type === pollTypes.text
         ? ["opinion"]
@@ -89,12 +97,16 @@ const FormInModal: React.FC<FormInModalProps> = ({
     return options.map((option) => option.trim()).filter((option) => option !== "");
   }, [isTextType, options]);
 
-  const canSave = title.trim() !== "" && type !== "" && (isTextType || sanitizedOptions.length > 0) && category !== "";
+  const canSave =
+    title.trim() !== "" &&
+    type !== "" &&
+    (isTextType || sanitizedOptions.length > 0) &&
+    category.length > 0;
 
   const resetForm = () => {
     setType("");
     setTitle("");
-    setCategory("");
+    setCategory([]);
     setOptions(initialOptions);
   };
 
@@ -117,27 +129,27 @@ const FormInModal: React.FC<FormInModalProps> = ({
     }
   };
 
-  const addOption = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  const addOption = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
     setOptions((prev) => [...prev, `Option ${prev.length + 1}`]);
   };
 
-  const deleteOption = (e: React.MouseEvent<HTMLDivElement>, index: number) => {
-    e.preventDefault();
+  const deleteOption = (event: React.MouseEvent<HTMLDivElement>, index: number) => {
+    event.preventDefault();
     setOptions((prev) => prev.filter((_, i) => i !== index));
   };
 
-  const handleTitle = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setTitle(e.target.value);
+  const handleTitle = (event: React.ChangeEvent<HTMLInputElement>) => {
+    setTitle(event.target.value);
   };
 
-  const handleOption = (e: React.ChangeEvent<HTMLInputElement>, index: number) => {
-    const val = e.target.value;
-    setOptions((prev) => prev.map((option, i) => (i === index ? val : option)));
+  const handleOption = (event: React.ChangeEvent<HTMLInputElement>, index: number) => {
+    const value = event.target.value;
+    setOptions((prev) => prev.map((option, i) => (i === index ? value : option)));
   };
 
-  const handleSave = (e: React.MouseEvent<HTMLButtonElement>) => {
-    e.preventDefault();
+  const handleSave = (event: React.MouseEvent<HTMLButtonElement>) => {
+    event.preventDefault();
 
     if (!canSave) {
       return;
@@ -168,19 +180,6 @@ const FormInModal: React.FC<FormInModalProps> = ({
     onModalClosed?.();
   };
 
-  const categories = [
-    { value: "حوزه ریاست", label: "حوزه ریاست" },
-    { value: "فنی", label: "فنی" },
-    { value: "تشریفات", label: "تشریفات" },
-    { value: "اقتصادی", label: "اقتصادی" },
-    { value: "ارتباطات", label: "ارتباطات" },
-    { value: "توسعه منابع و نوآوری", label: "توسعه منابع و نوآوری" },
-    { value: "بازرسی", label: "بازرسی" },
-    { value: "صیانت", label: "صیانت"    },
-    { value: "امداد نجات", label: "امداد نجات"  },
-    { value: "دبیر همایش", label: "دبیر همایش"  },
-  ];
-
   return (
     <>
       <Button size="sm" onClick={openModal} type="button" disabled={isEditing}>
@@ -205,11 +204,12 @@ const FormInModal: React.FC<FormInModalProps> = ({
             </div>
 
             <div className="col-span-2">
-              <Select
-                options={categories}
-                onChange={(val) => setCategory(val)}
-                placeholder="Category"
+              <MultiSelect
+                label="Category"
+                options={categoryOptions}
                 value={category}
+                placeholder="Choose categories"
+                onChange={setCategory}
               />
             </div>
 
@@ -250,18 +250,19 @@ const FormInModal: React.FC<FormInModalProps> = ({
                 {!isTextType && type !== "" ? (
                   <div className="w-full">
                     {options.map((option, index) => (
-                      <div key={index} className="grid grid-cols-7 my-2 w-full">
+                      <div key={option + index} className="grid grid-cols-7 my-2 w-full">
                         <div className="col-span-6">
                           <Input
                             type="text"
                             placeholder={`Option ${index + 1}`}
-                            onChange={(e) => handleOption(e, index)}
+                            onChange={(event) => handleOption(event, index)}
+                            value={option}
                           />
                         </div>
 
                         <div
                           className="flex justify-center items-center cursor-pointer"
-                          onClick={(e) => deleteOption(e, index)}
+                          onClick={(event) => deleteOption(event, index)}
                         >
                           X
                         </div>
@@ -293,5 +294,3 @@ const FormInModal: React.FC<FormInModalProps> = ({
 };
 
 export default FormInModal;
-
-

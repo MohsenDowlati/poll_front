@@ -23,6 +23,13 @@ export interface AdminUserRecord extends Record<string, unknown> {
   isVerified?: boolean;
 }
 
+export interface AdminStatusPayload {
+  user_id: string | number;
+  is_verified: boolean;
+}
+
+export type AdminStatusResponse = Record<string, unknown>;
+
 export interface AdminPaginationPayload extends Record<string, unknown> {
   page?: number;
   page_size?: number;
@@ -61,6 +68,10 @@ export const listAdminUsers = (params?: AdminUsersQueryParams) => {
   return http.get<AdminUserListResponse>(endpoints.admin.users, {
     params,
   });
+};
+
+export const updateAdminStatus = (payload: AdminStatusPayload) => {
+  return http.post<AdminStatusResponse>(endpoints.admin.updateStatus, payload);
 };
 
 export const extractAdminUsers = (

@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import Pagination from "@/components/tables/Pagination";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
@@ -9,8 +9,12 @@ import {
   extractAdminUsers,
   extractAdminPaginationMeta,
   type AdminUserRecord,
+  updateAdminStatus,
 } from "@/services/admin";
-import {useLocale} from "@/hooks/useLocale";
+import { useLocale } from "@/hooks/useLocale";
+import { getAuthTokenFromCookie } from "@/utils/authToken";
+import { decodeJwtPayload } from "@/utils/jwt";
+import { isSuperAdmin } from "@/utils/roles";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
@@ -70,12 +74,36 @@ const resolvePhone = (record: AdminUserRecord): string => {
   return "-";
 };
 
+const resolveUserIdentifier = (record: AdminUserRecord): string | null => {
+  const extendedRecord = record as Record<string, unknown>;
+  const candidates = [
+    record.id,
+    extendedRecord["user_id"],
+    extendedRecord["userId"],
+  ];
+
+  for (const candidate of candidates) {
+    if (candidate !== undefined && candidate !== null) {
+      const normalized = String(candidate).trim();
+      if (normalized) {
+        return normalized;
+      }
+    }
+  }
+
+  return null;
+};
+
 export default function UserTable() {
+  const { t } = useLocale();
   const [page, setPage] = useState(DEFAULT_PAGE);
   const [users, setUsers] = useState<AdminUserRecord[]>([]);
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [mutationError, setMutationError] = useState<string | null>(null);
+  const [mutatingUserIds, setMutatingUserIds] = useState<Record<string, boolean>>({});
+  const [canManageUsers, setCanManageUsers] = useState(false);
 
   const pageSize = DEFAULT_PAGE_SIZE;
 
@@ -85,6 +113,7 @@ export default function UserTable() {
     const fetchUsers = async () => {
       setIsLoading(true);
       setError(null);
+      setMutationError(null);
 
       try {
         const { status, data } = await listAdminUsers({
@@ -150,6 +179,16 @@ export default function UserTable() {
     };
   }, [page, pageSize]);
 
+  useEffect(() => {
+    const token = getAuthTokenFromCookie();
+    if (!token) {
+      setCanManageUsers(false);
+      return;
+    }
+    const payload = decodeJwtPayload(token);
+    setCanManageUsers(isSuperAdmin(payload));
+  }, []);
+
   const handlePageChange = (nextPage: number) => {
     setPage((current) => {
       if (!Number.isFinite(nextPage)) {
@@ -162,22 +201,79 @@ export default function UserTable() {
     });
   };
 
+  const mutateUserStatus = useCallback(
+    async (user: AdminUserRecord, nextStatus: boolean) => {
+      if (!canManageUsers) {
+        return;
+      }
+
+      const identifier = resolveUserIdentifier(user);
+      if (!identifier) {
+        setMutationError(
+          t("tables.error.updateAdminStatus.missingIdentifier", {
+            defaultValue: "Unable to determine the selected admin account.",
+          }),
+        );
+        return;
+      }
+
+      setMutationError(null);
+      setMutatingUserIds((prev) => ({
+        ...prev,
+        [identifier]: true,
+      }));
+
+      try {
+        await updateAdminStatus({
+          user_id: identifier,
+          is_verified: nextStatus,
+        });
+
+        setUsers((prev) =>
+          prev.map((candidate) => {
+            if (resolveUserIdentifier(candidate) === identifier) {
+              return {
+                ...candidate,
+                is_verified: nextStatus,
+                isVerified: nextStatus,
+              };
+            }
+            return candidate;
+          }),
+        );
+      } catch (statusError) {
+        console.error("Failed to update admin status", statusError);
+        setMutationError(
+          t("tables.error.updateAdminStatus.failed", {
+            defaultValue: "Failed to update admin status. Please try again.",
+          }),
+        );
+      } finally {
+        setMutatingUserIds((prev) => {
+          const next = { ...prev };
+          delete next[identifier];
+          return next;
+        });
+      }
+    },
+    [canManageUsers, setUsers, setMutationError, setMutatingUserIds, t],
+  );
+
   const handleDeleteUser = (user: AdminUserRecord) => {
-    console.log("delete user", user.id);
+    void mutateUserStatus(user, false);
   };
 
   const handleVerifyUser = (user: AdminUserRecord) => {
-    console.log("verify user", user.id);
+    void mutateUserStatus(user, true);
   };
 
   const handleRejectUser = (user: AdminUserRecord) => {
-    console.log("reject user", user.id);
+    void mutateUserStatus(user, false);
   };
 
   const showEmptyState = !isLoading && !error && users.length === 0;
   const tableRows = useMemo(() => users, [users]);
 
-  const {t} = useLocale();
 
   return (
     <div dir="ltr" className="w-full">
@@ -229,6 +325,9 @@ export default function UserTable() {
                 const key = String(user.id ?? index);
                 const isVerified = resolveIsVerified(user);
                 const statusMeta = resolveStatusMeta(isVerified);
+                const identifier = resolveUserIdentifier(user);
+                const isMutating = identifier ? Boolean(mutatingUserIds[identifier]) : false;
+                const canMutate = canManageUsers && Boolean(identifier);
 
                 return (
                   <TableRow key={key}>
@@ -249,87 +348,94 @@ export default function UserTable() {
                         {statusMeta.label}
                       </Badge>
                     </TableCell>
-                    <TableCell className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        {(isVerified && user.admin !== "user_admin") ? (
-                          <button
-                            type="button"
-                            onClick={() => handleDeleteUser(user)}
-                            className="inline-flex items-center"
-                            aria-label="Remove admin"
-                          >
-                            <Badge size="sm" color="info">
-                              <svg
-                                width="16"
-                                height="16"
-                                viewBox="0 0 16 16"
-                                fill="none"
-                                xmlns="http://www.w3.org/2000/svg"
+                      <TableCell className="px-4 py-4">
+                        {canMutate ? (
+                          <div className="flex items-center gap-2">
+                            {(isVerified && user.admin !== "user_admin") ? (
+                              <button
+                                type="button"
+                                onClick={() => handleDeleteUser(user)}
+                                className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
+                                aria-label="Remove admin"
+                                disabled={isMutating}
                               >
-                                <path
-                                  d="M5.5 2.5L5.79289 2.20711C5.925 2.075 6.10754 2 6.2981 2H9.7019C9.89246 2 10.075 2.075 10.2071 2.20711L10.5 2.5H12.5C12.7761 2.5 13 2.72386 13 3C13 3.27614 12.7761 3.5 12.5 3.5H3.5C3.22386 3.5 3 3.27614 3 3C3 2.72386 3.22386 2.5 3.5 2.5H5.5Z"
-                                  fill="currentColor"
-                                />
-                                <path
-                                  d="M4 5H12V12.5C12 13.3284 11.3284 14 10.5 14H5.5C4.67157 14 4 13.3284 4 12.5V5Z"
-                                  fill="currentColor"
-                                />
-                              </svg>
-                            </Badge>
-                          </button>
+                                <Badge size="sm" color="info">
+                                  <svg
+                                    width="16"
+                                    height="16"
+                                    viewBox="0 0 16 16"
+                                    fill="none"
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path
+                                      d="M5.5 2.5L5.79289 2.20711C5.925 2.075 6.10754 2 6.2981 2H9.7019C9.89246 2 10.075 2.075 10.2071 2.20711L10.5 2.5H12.5C12.7761 2.5 13 2.72386 13 3C13 3.27614 12.7761 3.5 12.5 3.5H3.5C3.22386 3.5 3 3.27614 3 3C3 2.72386 3.22386 2.5 3.5 2.5H5.5Z"
+                                      fill="currentColor"
+                                    />
+                                    <path
+                                      d="M4 5H12V12.5C12 13.3284 11.3284 14 10.5 14H5.5C4.67157 14 4 13.3284 4 12.5V5Z"
+                                      fill="currentColor"
+                                    />
+                                  </svg>
+                                </Badge>
+                              </button>
+                            ) : (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => handleVerifyUser(user)}
+                                  className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label="Verify admin"
+                                  disabled={isMutating}
+                                >
+                                  <Badge size="sm" color="success">
+                                    <svg
+                                      width="16"
+                                      height="16"
+                                      viewBox="0 0 16 16"
+                                      fill="none"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path
+                                        d="M13.4017 4.35986L6.12166 11.6399L2.59833 8.11657"
+                                        stroke="currentColor"
+                                        strokeWidth="1.8"
+                                        strokeLinecap="round"
+                                        strokeLinejoin="round"
+                                      />
+                                    </svg>
+                                  </Badge>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleRejectUser(user)}
+                                  className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label="Reject admin"
+                                  disabled={isMutating}
+                                >
+                                  <Badge size="sm" color="error">
+                                    <svg
+                                      width="16"
+                                      height="16"
+                                      viewBox="0 0 16 16"
+                                      fill="none"
+                                      xmlns="http://www.w3.org/2000/svg"
+                                    >
+                                      <path
+                                        fillRule="evenodd"
+                                        clipRule="evenodd"
+                                        d="M4.05394 4.78033C3.76105 4.48744 3.76105 4.01256 4.05394 3.71967C4.34684 3.42678 4.82171 3.42678 5.1146 3.71967L8.33437 6.93944L11.5521 3.72173C11.845 3.42883 12.3199 3.42883 12.6127 3.72173C12.9056 4.01462 12.9056 4.48949 12.6127 4.78239L9.39503 8.0001L12.6127 11.2178C12.9056 11.5107 12.9056 11.9856 12.6127 12.2785C12.3198 12.5713 11.845 12.5713 11.5521 12.2785L8.33437 9.06076L5.11462 12.2805C4.82173 12.5734 4.34685 12.5734 4.05396 12.2805C3.76107 11.9876 3.76107 11.5127 4.05396 11.2199L7.27371 8.0001L4.05394 4.78033Z"
+                                        fill="currentColor"
+                                      />
+                                    </svg>
+                                  </Badge>
+                                </button>
+                              </>
+                            )}
+                          </div>
                         ) : (
-                          <>
-                            <button
-                              type="button"
-                              onClick={() => handleVerifyUser(user)}
-                              className="inline-flex items-center"
-                              aria-label="Verify admin"
-                            >
-                              <Badge size="sm" color="success">
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 16 16"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <path
-                                    d="M13.4017 4.35986L6.12166 11.6399L2.59833 8.11657"
-                                    stroke="currentColor"
-                                    strokeWidth="1.8"
-                                    strokeLinecap="round"
-                                    strokeLinejoin="round"
-                                  />
-                                </svg>
-                              </Badge>
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => handleRejectUser(user)}
-                              className="inline-flex items-center"
-                              aria-label="Reject admin"
-                            >
-                              <Badge size="sm" color="error">
-                                <svg
-                                  width="16"
-                                  height="16"
-                                  viewBox="0 0 16 16"
-                                  fill="none"
-                                  xmlns="http://www.w3.org/2000/svg"
-                                >
-                                  <path
-                                    fillRule="evenodd"
-                                    clipRule="evenodd"
-                                    d="M4.05394 4.78033C3.76105 4.48744 3.76105 4.01256 4.05394 3.71967C4.34684 3.42678 4.82171 3.42678 5.1146 3.71967L8.33437 6.93944L11.5521 3.72173C11.845 3.42883 12.3199 3.42883 12.6127 3.72173C12.9056 4.01462 12.9056 4.48949 12.6127 4.78239L9.39503 8.0001L12.6127 11.2178C12.9056 11.5107 12.9056 11.9856 12.6127 12.2785C12.3198 12.5713 11.845 12.5713 11.5521 12.2785L8.33437 9.06076L5.11462 12.2805C4.82173 12.5734 4.34685 12.5734 4.05396 12.2805C3.76107 11.9876 3.76107 11.5127 4.05396 11.2199L7.27371 8.0001L4.05394 4.78033Z"
-                                    fill="currentColor"
-                                  />
-                                </svg>
-                              </Badge>
-                            </button>
-                          </>
+                          <span className="text-xs text-gray-400 dark:text-gray-500">-</span>
                         )}
-                      </div>
-                    </TableCell>
+                      </TableCell>
                   </TableRow>
                 );
               })}
@@ -352,6 +458,17 @@ export default function UserTable() {
                     className="px-5 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
                     No users found.
+                  </TableCell>
+                </TableRow>
+              )}
+
+              {mutationError && (
+                <TableRow>
+                  <TableCell
+                    colSpan={6}
+                    className="px-5 py-6 text-center text-sm text-error-500"
+                  >
+                    {mutationError}
                   </TableCell>
                 </TableRow>
               )}
