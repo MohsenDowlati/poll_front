@@ -1,6 +1,7 @@
 "use client";
 
 import React, { useCallback, useEffect, useMemo, useState } from "react";
+import type { TFunction } from "i18next";
 import Pagination from "@/components/tables/Pagination";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
@@ -19,28 +20,35 @@ import { isSuperAdmin } from "@/utils/roles";
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
 
-const ADMIN_TYPE_LABELS: Record<string, string> = {
-  super_admin: "Super Admin",
-  verified_admin: "Verified Admin",
-  new_user: "New User",
-  canceled_user: "Canceled User",
+const ADMIN_TYPE_KEYS: Record<string, string> = {
+  super_admin: "userTable.roles.superAdmin",
+  verified_admin: "userTable.roles.verifiedAdmin",
+  new_user: "userTable.roles.newUser",
+  canceled_user: "userTable.roles.canceledUser",
 };
 
-const formatAdminType = (typeValue: AdminUserRecord["admin"]): string => {
+const formatAdminType = (
+  typeValue: AdminUserRecord["admin"],
+  translate: TFunction<"translation">,
+): string => {
   if (!typeValue) {
     return "-";
   }
 
   const raw = String(typeValue);
   const normalized = raw.toLowerCase();
-  return ADMIN_TYPE_LABELS[normalized] ?? raw.replace(/_/g, " " ).replace(/\b\w/g, (char) => char.toUpperCase());
+  const translationKey = ADMIN_TYPE_KEYS[normalized];
+  if (translationKey) {
+    return translate(translationKey);
+  }
+  return raw.replace(/_/g, " ").replace(/\b\w/g, (char) => char.toUpperCase());
 };
 
-const resolveStatusMeta = (isVerified?: boolean) => {
+const resolveStatusMeta = (isVerified: boolean, translate: TFunction<"translation">) => {
   if (isVerified) {
-    return { label: "Verified", color: "success" as const };
+    return { label: translate("userTable.status.verified"), color: "success" as const };
   }
-  return { label: "Not Verified", color: "warning" as const };
+  return { label: translate("userTable.status.notVerified"), color: "warning" as const };
 };
 
 const resolveIsVerified = (record: AdminUserRecord): boolean => {
@@ -53,11 +61,11 @@ const resolveIsVerified = (record: AdminUserRecord): boolean => {
   return false;
 };
 
-const resolveName = (record: AdminUserRecord): string => {
+const resolveName = (record: AdminUserRecord, translate: TFunction<"translation">): string => {
   if (record.name && record.name.trim()) {
     return record.name.trim();
   }
-  return String(record.id ?? "Unknown");
+  return String(record.id ?? translate("common.unknown"));
 };
 
 const resolveOrganization = (record: AdminUserRecord): string => {
@@ -156,7 +164,7 @@ export default function UserTable() {
           }
         } else {
           setUsers([]);
-          setError(`Unable to retrieve users (status ${status}).`);
+          setError(t("userTable.error.status", { status }));
         }
       } catch (fetchError) {
         console.error("Failed to load users", fetchError);
@@ -164,7 +172,7 @@ export default function UserTable() {
           return;
         }
         setUsers([]);
-        setError("Failed to load users. Please try again.");
+        setError(t("userTable.error.fetch"));
       } finally {
         if (isMounted) {
           setIsLoading(false);
@@ -177,7 +185,7 @@ export default function UserTable() {
     return () => {
       isMounted = false;
     };
-  }, [page, pageSize]);
+  }, [page, pageSize, t]);
 
   useEffect(() => {
     const token = getAuthTokenFromCookie();
@@ -322,43 +330,47 @@ export default function UserTable() {
             </TableHeader>
             <TableBody className="divide-y divide-gray-100 dark:divide-white/[0.05]">
               {tableRows.map((user, index) => {
-                const key = String(user.id ?? index);
-                const isVerified = resolveIsVerified(user);
-                const statusMeta = resolveStatusMeta(isVerified);
-                const identifier = resolveUserIdentifier(user);
-                const isMutating = identifier ? Boolean(mutatingUserIds[identifier]) : false;
-                const canMutate = canManageUsers && Boolean(identifier);
+                  const key = String(user.id ?? index);
+                  const isVerified = resolveIsVerified(user);
+                  const statusMeta = resolveStatusMeta(isVerified, t);
+                  const identifier = resolveUserIdentifier(user);
+                  const isMutating = identifier ? Boolean(mutatingUserIds[identifier]) : false;
+                  const canMutate = canManageUsers && Boolean(identifier);
+                  const resolvedName = resolveName(user, t);
+                  const resolvedPhone = resolvePhone(user);
+                  const resolvedOrganization = resolveOrganization(user);
+                  const adminTypeLabel = formatAdminType(user.admin, t);
 
-                return (
-                  <TableRow key={key}>
-                    <TableCell className="px-5 py-4 text-left text-theme-sm text-gray-800 dark:text-white/90">
-                      {resolveName(user)}
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
-                      {resolvePhone(user)}
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
-                      {resolveOrganization(user)}
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
-                      {formatAdminType(user.admin)}
-                    </TableCell>
-                    <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
-                      <Badge size="sm" color={statusMeta.color}>
-                        {statusMeta.label}
-                      </Badge>
-                    </TableCell>
+                  return (
+                    <TableRow key={key}>
+                      <TableCell className="px-5 py-4 text-left text-theme-sm text-gray-800 dark:text-white/90">
+                        {resolvedName}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
+                        {resolvedPhone}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
+                        {resolvedOrganization}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
+                        {adminTypeLabel}
+                      </TableCell>
+                      <TableCell className="px-4 py-4 text-left text-theme-sm text-gray-600 dark:text-gray-300">
+                        <Badge size="sm" color={statusMeta.color}>
+                          {statusMeta.label}
+                        </Badge>
+                      </TableCell>
                       <TableCell className="px-4 py-4">
                         {canMutate ? (
                           <div className="flex items-center gap-2">
-                            {(isVerified && user.admin !== "user_admin") ? (
-                              <button
-                                type="button"
-                                onClick={() => handleDeleteUser(user)}
-                                className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
-                                aria-label="Remove admin"
-                                disabled={isMutating}
-                              >
+                              {(isVerified && user.admin !== "user_admin") ? (
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteUser(user)}
+                                  className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
+                                  aria-label={t("userTable.actions.remove")}
+                                  disabled={isMutating}
+                                >
                                 <Badge size="sm" color="info">
                                   <svg
                                     width="16"
@@ -384,7 +396,7 @@ export default function UserTable() {
                                   type="button"
                                   onClick={() => handleVerifyUser(user)}
                                   className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
-                                  aria-label="Verify admin"
+                                  aria-label={t("userTable.actions.verify")}
                                   disabled={isMutating}
                                 >
                                   <Badge size="sm" color="success">
@@ -409,7 +421,7 @@ export default function UserTable() {
                                   type="button"
                                   onClick={() => handleRejectUser(user)}
                                   className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
-                                  aria-label="Reject admin"
+                                  aria-label={t("userTable.actions.reject")}
                                   disabled={isMutating}
                                 >
                                   <Badge size="sm" color="error">
@@ -446,7 +458,7 @@ export default function UserTable() {
                     colSpan={6}
                     className="px-5 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    Loading users...
+                    {t("userTable.loading")}
                   </TableCell>
                 </TableRow>
               )}
@@ -457,7 +469,7 @@ export default function UserTable() {
                     colSpan={6}
                     className="px-5 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
                   >
-                    No users found.
+                    {t("userTable.empty")}
                   </TableCell>
                 </TableRow>
               )}

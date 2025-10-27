@@ -1,9 +1,10 @@
 "use client";
 
-import React from 'react';
+import React, { useMemo } from "react";
 import { compactFormat } from "@/utils/format_number";
 import type { ApexOptions } from "apexcharts";
 import dynamic from "next/dynamic";
+import { useLocale } from "@/hooks/useLocale";
 
 type PropsType = {
   data: { name: string; amount: number }[];
@@ -14,7 +15,9 @@ const Chart = dynamic(() => import("react-apexcharts"), {
 });
 
 export function DonutChart({ data }: PropsType) {
-  const chartOptions: ApexOptions = {
+  const { t } = useLocale();
+
+  const chartOptions: ApexOptions = useMemo(() => ({
     chart: {
       type: "donut",
       fontFamily: "inherit",
@@ -43,7 +46,7 @@ export function DonutChart({ data }: PropsType) {
             total: {
               show: true,
               showAlways: true,
-              label: "Votes",
+              label: t("sheet.poll.chart.votes"),
               fontSize: "21px",
               fontWeight: "400",
             },
@@ -86,7 +89,7 @@ export function DonutChart({ data }: PropsType) {
         },
       },
     ],
-  };
+  }), [data, t]);
 
   return (
     <Chart

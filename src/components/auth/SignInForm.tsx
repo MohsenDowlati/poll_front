@@ -3,7 +3,6 @@ import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import Button from "@/components/ui/button/Button";
 import { EyeCloseIcon, EyeIcon } from "@/icons";
-import Link from "next/link";
 import React, { useState } from "react";
 import PhoneInput from "@/components/form/group-input/PhoneInput";
 import { normalizePhone } from "@/utils/normalizePhone";
@@ -19,7 +18,7 @@ export default function SignInForm() {
 
   const router = useRouter();
 
-  const {direction, t} = useLocale();
+  const {t} = useLocale();
 
   const countries = [
     {
@@ -36,7 +35,6 @@ export default function SignInForm() {
     try {
       const { status, data } = await login(payload);
       if (status >= 200 && status < 300) {
-        console.log("ok", data);
         const token = extractToken(data);
         if (token) {
           setAuthTokenCookie(token);
@@ -113,7 +111,7 @@ export default function SignInForm() {
                   <div className="relative" dir={"ltr"}>
                     <Input
                       type={showPassword ? "text" : "password"}
-                      placeholder="Enter your password"
+                      placeholder={t('auth.inputs.passwordPlaceholder')}
                       onChange={handlePassword}
                     />
                     <span

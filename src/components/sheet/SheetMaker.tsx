@@ -101,7 +101,7 @@ export default function SheetMaker() {
 
   const handleSubmit = async () => {
     if (!sheetName.trim() || !venue.trim()) {
-      setErrorMessage("Please provide both sheet name and venue before submitting.");
+      setErrorMessage(t("sheet.builder.error.missingFields"));
       return;
     }
 
@@ -119,30 +119,30 @@ export default function SheetMaker() {
 
     try {
       await createSheet(payload);
-      setSuccessMessage("Sheet created successfully.");
+      setSuccessMessage(t("sheet.builder.success"));
       resetForm();
     } catch (error) {
       console.error(error);
-      setErrorMessage("We couldn't create the sheet right now. Please try again.");
+      setErrorMessage(t("sheet.builder.error.generic"));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const { language, changeLanguage, t } = useLocale();
+  const { t } = useLocale();
 
   return (
     <div className="mx-auto w-full max-w-[780px] text-center flex flex-col">
       <h3 className="mb-4 font-semibold text-gray-800 text-theme-xl dark:text-white/90 sm:text-2xl">
-        Make your own survey
+        {t("sheet.builder.title")}
       </h3>
 
       <div className="grid grid-cols-6 mb-8 gap-4">
         <div className="col-span-4">
-          <Label>Sheet&apos;s Name</Label>
+          <Label>{t("sheet.builder.nameLabel")}</Label>
           <Input
             type="text"
-            placeholder="Name"
+            placeholder={t("sheet.builder.namePlaceholder")}
             value={sheetName}
             onChange={(event) => setSheetName(event.target.value)}
           />
@@ -150,7 +150,7 @@ export default function SheetMaker() {
         <div className="col-span-4 mt-5">
           <VenueSelect value={venue} onChange={setVenue} placeholder={t('selector.venue')}/>
         </div>
-        <PhoneSwitch value={isPhoneRequired} onChange={setIsPhoneRequired} />
+        <PhoneSwitch value={isPhoneRequired} onChange={setIsPhoneRequired} label={t("sheet.builder.phoneLabel")} />
       </div>
 
       <div className="grid grid-cols-2 mb-8 gap-4">
@@ -166,7 +166,7 @@ export default function SheetMaker() {
           onClick={handleSubmit}
           disabled={!canSubmit}
         >
-          {isSubmitting ? "Submitting..." : "Submit"}
+          {isSubmitting ? t("sheet.builder.submitting") : t("sheet.builder.submit")}
         </Button>
       </div>
 

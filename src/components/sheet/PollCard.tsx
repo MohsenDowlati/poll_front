@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocale } from "@/hooks/useLocale";
 
 interface ComponentCardProps {
   title: string;
@@ -17,11 +18,26 @@ const PollCard: React.FC<ComponentCardProps> = ({
   className = "",
   type,
   onDelete,
-    onEdit,
+  onEdit,
 }) => {
+  const { t } = useLocale();
   const normalizedType = type.toLowerCase();
   const isTextType = normalizedType === "text" || normalizedType === "opinion";
-  const categoriesLabel = category.length > 0 ? category.join(", ") : "Uncategorized";
+  const translateCategory = (rawValue: unknown) => {
+    const value = typeof rawValue === "string" ? rawValue : String(rawValue ?? "");
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) {
+      return value;
+    }
+    if (normalized === "uncategorized") {
+      return t("sheet.poll.uncategorized");
+    }
+    return t(`sheet.poll.categories.${normalized}`, { defaultValue: value });
+  };
+  const categoriesLabel =
+    category.length > 0
+      ? category.map((item) => translateCategory(item)).join(", ")
+      : t("sheet.poll.uncategorized");
 
   return (
     <div className={`rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] ${className}`}>
@@ -35,7 +51,7 @@ const PollCard: React.FC<ComponentCardProps> = ({
                       type="button"
                       onClick={onEdit}
                       className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-indigo-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500"
-                      aria-label="Edit poll">
+                      aria-label={t("sheet.poll.actions.edit")}>
                     <svg
 
                         className="h-8 w-8"
@@ -58,7 +74,7 @@ const PollCard: React.FC<ComponentCardProps> = ({
                     type="button"
                     onClick={onDelete}
                     className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-error-500"
-                    aria-label="Delete poll"
+                    aria-label={t("sheet.poll.actions.delete")}
                 >
                   <svg
                       xmlns="http://www.w3.org/2000/svg"

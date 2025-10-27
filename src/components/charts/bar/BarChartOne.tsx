@@ -1,5 +1,6 @@
 "use client";
 import React from "react";
+import { useLocale } from "@/hooks/useLocale";
 
 import { ApexOptions } from "apexcharts";
 
@@ -15,7 +16,8 @@ interface BarChartProps {
   votes: number[];
 }
 
-export default function BarChartOne({option, votes}: BarChartProps) {
+export default function BarChartOne({ option, votes }: BarChartProps) {
+  const { t } = useLocale();
   const options: ApexOptions = {
     colors: ["#465fff"],
     chart: {
@@ -84,7 +86,7 @@ export default function BarChartOne({option, votes}: BarChartProps) {
   };
   const series = [
     {
-      name: "Votes",
+      name: t("sheet.poll.chart.votes"),
       data: votes,
     },
   ];

@@ -8,6 +8,7 @@ import Label from "../../form/Label";
 import Input from "../../form/input/InputField";
 
 import { useModal } from "@/hooks/useModal";
+import { useLocale } from "@/hooks/useLocale";
 import Checkbox from "@/components/form/input/Checkbox";
 import MultiSelect from "@/components/form/MultiSelect";
 
@@ -26,27 +27,12 @@ interface FormInModalProps {
   onModalClosed?: () => void;
 }
 
-const initialOptions = ["Option 1", "Option 2", "Option 3"];
-
 const pollTypes = {
   single: "single_choice",
   multiple: "multi_choice",
   slider: "slide",
   text: "opinion",
 } as const;
-
-const categoryOptions = [
-  { value: "business", text: "Business" },
-  { value: "community", text: "Community" },
-  { value: "education", text: "Education" },
-  { value: "entertainment", text: "Entertainment" },
-  { value: "environment", text: "Environment" },
-  { value: "health", text: "Health" },
-  { value: "politics", text: "Politics" },
-  { value: "sports", text: "Sports" },
-  { value: "technology", text: "Technology" },
-  { value: "other", text: "Other" },
-];
 
 const createId = () => {
   if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -62,9 +48,31 @@ const FormInModal: React.FC<FormInModalProps> = ({
   onModalClosed,
 }) => {
   const { isOpen, openModal, closeModal } = useModal();
+  const { t } = useLocale();
+
+  const categoryOptions = useMemo(
+    () => [
+      { value: "business", text: t("sheet.poll.categories.business") },
+      { value: "community", text: t("sheet.poll.categories.community") },
+      { value: "education", text: t("sheet.poll.categories.education") },
+      { value: "entertainment", text: t("sheet.poll.categories.entertainment") },
+      { value: "environment", text: t("sheet.poll.categories.environment") },
+      { value: "health", text: t("sheet.poll.categories.health") },
+      { value: "politics", text: t("sheet.poll.categories.politics") },
+      { value: "sports", text: t("sheet.poll.categories.sports") },
+      { value: "technology", text: t("sheet.poll.categories.technology") },
+      { value: "other", text: t("sheet.poll.categories.other") },
+    ],
+    [t],
+  );
+
+  const defaultOptions = useMemo(
+    () => [1, 2, 3].map((index) => t("sheet.poll.optionLabel", { index })),
+    [t],
+  );
 
   const [type, setType] = useState<string>("");
-  const [options, setOptions] = useState<string[]>(initialOptions);
+  const [options, setOptions] = useState<string[]>(defaultOptions);
   const [category, setCategory] = useState<string[]>([]);
   const [title, setTitle] = useState<string>("");
 
@@ -83,12 +91,32 @@ const FormInModal: React.FC<FormInModalProps> = ({
         ? ["opinion"]
         : editingPoll.options.length > 0
           ? [...editingPoll.options]
-          : initialOptions,
+          : defaultOptions,
     );
     openModal();
   }, [editingPoll, openModal]);
 
   const isTextType = type === pollTypes.text;
+
+  useEffect(() => {
+    if (isTextType) {
+      return;
+    }
+
+    setOptions((current) => {
+      if (current.length === 0) {
+        return defaultOptions;
+      }
+
+      const normalizedCurrent = current.map((option) => option.trim());
+      const normalizedDefault = defaultOptions.map((option) => option.trim());
+      const matchesDefault =
+        normalizedCurrent.length === normalizedDefault.length &&
+        normalizedCurrent.every((value, index) => value === normalizedDefault[index]);
+
+      return matchesDefault ? defaultOptions : current;
+    });
+  }, [defaultOptions, isTextType]);
 
   const sanitizedOptions = useMemo(() => {
     if (isTextType) {
@@ -107,7 +135,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
     setType("");
     setTitle("");
     setCategory([]);
-    setOptions(initialOptions);
+    setOptions(defaultOptions);
   };
 
   const handleTypeSelect = (targetType: string) => (checked: boolean) => {
@@ -119,22 +147,25 @@ const FormInModal: React.FC<FormInModalProps> = ({
       return;
     }
 
-    if (checked) {
-      setType(targetType);
-      if (targetType === pollTypes.text) {
-        setOptions(["opinion"]);
-      } else if (options.length === 0) {
-        setOptions(initialOptions);
+      if (checked) {
+        setType(targetType);
+        if (targetType === pollTypes.text) {
+          setOptions(["opinion"]);
+        } else if (options.length === 0) {
+          setOptions(defaultOptions);
+        }
       }
-    }
   };
 
   const addOption = (event: React.MouseEvent<HTMLButtonElement>) => {
     event.preventDefault();
-    setOptions((prev) => [...prev, `Option ${prev.length + 1}`]);
+    setOptions((prev) => [
+      ...prev,
+      t("sheet.poll.optionLabel", { index: prev.length + 1 }),
+    ]);
   };
 
-  const deleteOption = (event: React.MouseEvent<HTMLDivElement>, index: number) => {
+  const deleteOption = (event: React.MouseEvent<HTMLButtonElement>, index: number) => {
     event.preventDefault();
     setOptions((prev) => prev.filter((_, i) => i !== index));
   };
@@ -183,21 +214,21 @@ const FormInModal: React.FC<FormInModalProps> = ({
   return (
     <>
       <Button size="sm" onClick={openModal} type="button" disabled={isEditing}>
-        New Poll
+        {t("sheet.poll.buttons.openCreator")}
       </Button>
 
       <Modal isOpen={isOpen} onClose={handleClose} className="max-w-[584px] p-5 lg:p-10">
         <form>
           <h4 className="mb-6 text-lg font-medium text-gray-800 dark:text-white/90">
-            {isEditing ? "Edit Poll" : "Poll"}
+            {isEditing ? t("sheet.poll.dialog.title.edit") : t("sheet.poll.dialog.title.create")}
           </h4>
 
           <div className="grid grid-cols-1 gap-x-6 gap-y-5 sm:grid-cols-2">
             <div className="col-span-2">
-              <Label>Title</Label>
+              <Label>{t("sheet.poll.fields.titleLabel")}</Label>
               <Input
                 type="text"
-                placeholder="What's your question?"
+                placeholder={t("sheet.poll.fields.titlePlaceholder")}
                 onChange={handleTitle}
                 value={title}
               />
@@ -205,10 +236,10 @@ const FormInModal: React.FC<FormInModalProps> = ({
 
             <div className="col-span-2">
               <MultiSelect
-                label="Category"
+                label={t("sheet.poll.fields.categoryLabel")}
                 options={categoryOptions}
                 value={category}
-                placeholder="Choose categories"
+                placeholder={t("sheet.poll.fields.categoryPlaceholder")}
                 onChange={setCategory}
               />
             </div>
@@ -218,7 +249,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
                 <Checkbox
                   checked={type === pollTypes.single}
                   onChange={handleTypeSelect(pollTypes.single)}
-                  label="Single"
+                  label={t("sheet.poll.fields.type.single")}
                 />
               </div>
 
@@ -226,7 +257,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
                 <Checkbox
                   checked={type === pollTypes.multiple}
                   onChange={handleTypeSelect(pollTypes.multiple)}
-                  label="Multi"
+                  label={t("sheet.poll.fields.type.multi")}
                 />
               </div>
 
@@ -234,7 +265,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
                 <Checkbox
                   checked={type === pollTypes.slider}
                   onChange={handleTypeSelect(pollTypes.slider)}
-                  label="Slider"
+                  label={t("sheet.poll.fields.type.slider")}
                 />
               </div>
 
@@ -242,35 +273,37 @@ const FormInModal: React.FC<FormInModalProps> = ({
                 <Checkbox
                   checked={type === pollTypes.text}
                   onChange={handleTypeSelect(pollTypes.text)}
-                  label="Opinion"
+                  label={t("sheet.poll.fields.type.opinion")}
                 />
               </div>
 
               <div className="col-span-4">
                 {!isTextType && type !== "" ? (
                   <div className="w-full">
-                    {options.map((option, index) => (
-                      <div key={option + index} className="grid grid-cols-7 my-2 w-full">
-                        <div className="col-span-6">
-                          <Input
-                            type="text"
-                            placeholder={`Option ${index + 1}`}
-                            onChange={(event) => handleOption(event, index)}
-                            value={option}
-                          />
-                        </div>
+                      {options.map((option, index) => (
+                        <div key={option + index} className="grid grid-cols-7 my-2 w-full">
+                          <div className="col-span-6">
+                            <Input
+                              type="text"
+                              placeholder={t("sheet.poll.optionLabel", { index: index + 1 })}
+                              onChange={(event) => handleOption(event, index)}
+                              value={option}
+                            />
+                          </div>
 
-                        <div
-                          className="flex justify-center items-center cursor-pointer"
-                          onClick={(event) => deleteOption(event, index)}
-                        >
-                          X
+                          <button
+                            type="button"
+                            className="flex justify-center items-center text-lg font-semibold text-gray-400 transition-colors hover:text-error-500"
+                            onClick={(event) => deleteOption(event, index)}
+                            aria-label={t("sheet.poll.option.removeAria", { index: index + 1 })}
+                          >
+                            ×
+                          </button>
                         </div>
-                      </div>
-                    ))}
+                      ))}
 
                     <Button size="sm" onClick={addOption} type="button">
-                      Add Option
+                      {t("sheet.poll.buttons.addOption")}
                     </Button>
                   </div>
                 ) : null}
@@ -278,13 +311,13 @@ const FormInModal: React.FC<FormInModalProps> = ({
             </div>
           </div>
 
-          <div className="flex items-center justify-end w-full gap-3 mt-6">
+            <div className="flex items-center justify-end w-full gap-3 mt-6">
             <Button size="sm" variant="outline" onClick={handleClose} type="button">
-              Close
+              {t("sheet.poll.buttons.close")}
             </Button>
 
             <Button size="sm" onClick={handleSave} disabled={!canSave} type="button">
-              {isEditing ? "Update Poll" : "Save Changes"}
+              {isEditing ? t("sheet.poll.buttons.update") : t("sheet.poll.buttons.save")}
             </Button>
           </div>
         </form>

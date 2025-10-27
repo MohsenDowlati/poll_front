@@ -1,16 +1,19 @@
-"use client";
-import Link from "next/link";
-import React, { useCallback, useEffect, useState } from "react";
+﻿"use client";
+
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Dropdown } from "../ui/dropdown/Dropdown";
 import { DropdownItem } from "../ui/dropdown/DropdownItem";
 import {
   getNotification,
-  extractNotifications, approveNotification, rejectNotification,
+  extractNotifications,
+  approveNotification,
+  rejectNotification,
 } from "@/services/notification/notification";
 import type {
   GetNotificationParams,
   NotificationRecord,
 } from "@/services/notification/notification";
+import { useLocale } from "@/hooks/useLocale";
 
 type NotificationCardProps = {
   notification: NotificationRecord;
@@ -24,46 +27,6 @@ const DEFAULT_NOTIFICATION_PARAMS: GetNotificationParams = {
 const DEFAULT_PAGE = DEFAULT_NOTIFICATION_PARAMS.page ?? 1;
 const DEFAULT_PAGE_SIZE = DEFAULT_NOTIFICATION_PARAMS.page_size ?? 10;
 
-//TODO: alert
-
-const formatRelativeTime = (input?: string): string => {
-  if (!input) {
-    return "just now";
-  }
-
-  const parsed = new Date(input);
-  if (Number.isNaN(parsed.getTime())) {
-    return input;
-  }
-
-  const diffMs = Date.now() - parsed.getTime();
-  const isFuture = diffMs < 0;
-  const diffSeconds = Math.floor(Math.abs(diffMs) / 1000);
-
-  if (diffSeconds < 60) {
-    return isFuture ? "in less than a minute" : "just now";
-  }
-
-  const units = [
-    { label: "year", seconds: 60 * 60 * 24 * 365 },
-    { label: "month", seconds: 60 * 60 * 24 * 30 },
-    { label: "week", seconds: 60 * 60 * 24 * 7 },
-    { label: "day", seconds: 60 * 60 * 24 },
-    { label: "hour", seconds: 60 * 60 },
-    { label: "minute", seconds: 60 },
-  ];
-
-  for (const { label, seconds } of units) {
-    if (diffSeconds >= seconds) {
-      const value = Math.floor(diffSeconds / seconds);
-      const suffix = value === 1 ? label : `${label}s`;
-      return isFuture ? `in ${value} ${suffix}` : `${value} ${suffix} ago`;
-    }
-  }
-
-  return isFuture ? "in less than a minute" : "just now";
-};
-
 function NotificationCard({ notification }: NotificationCardProps) {
   const {
     id,
@@ -74,123 +37,158 @@ function NotificationCard({ notification }: NotificationCardProps) {
     sheet_title,
   } = notification;
 
-  async function approve_notification(id:string) {
-    try {
-      const {status, data} = await approveNotification(id);
-      if (status>=200 && status<300) {
-        console.log("ok")
-      } else {
-        console.log("error")
+  const { t, language } = useLocale();
+
+  const relativeTimeFormatter = useMemo(
+    () =>
+      new Intl.RelativeTimeFormat(language === "fa" ? "fa-IR" : "en-US", {
+        numeric: "auto",
+      }),
+    [language],
+  );
+
+  const formatRelativeTime = useCallback(
+    (input?: string) => {
+      if (!input) {
+        return relativeTimeFormatter.format(0, "second");
       }
 
-    } catch (e) {
-      console.error(e);
-    }
-  }
-
-  async function reject_notification(id:string) {
-    try {
-      const {status, data} = await rejectNotification(id);
-      if (status>=200 && status<300) {
-        console.log("ok")
-      } else {
-        console.log("error")
+      const parsed = new Date(input);
+      if (Number.isNaN(parsed.getTime())) {
+        return input;
       }
-    } catch (e) {
-      console.error(e);
+
+      const diffSeconds = (parsed.getTime() - Date.now()) / 1000;
+      const units: Array<[Intl.RelativeTimeFormatUnit, number]> = [
+        ["year", 60 * 60 * 24 * 365],
+        ["month", 60 * 60 * 24 * 30],
+        ["week", 60 * 60 * 24 * 7],
+        ["day", 60 * 60 * 24],
+        ["hour", 60 * 60],
+        ["minute", 60],
+      ];
+
+      for (const [unit, secondsInUnit] of units) {
+        if (Math.abs(diffSeconds) >= secondsInUnit) {
+          const value = Math.round(diffSeconds / secondsInUnit);
+          return relativeTimeFormatter.format(value, unit);
+        }
+      }
+
+      return relativeTimeFormatter.format(Math.round(diffSeconds), "second");
+    },
+    [relativeTimeFormatter],
+  );
+
+  const identifier = id != null ? String(id) : null;
+
+  const handleApprove = useCallback(() => {
+    if (!identifier) {
+      return;
     }
-  }
+    void approveNotification(identifier).catch((error) => {
+      console.error("Failed to approve notification", error);
+    });
+  }, [identifier]);
 
-  const approveNote = () => {
-    void approve_notification(id)
-  }
+  const handleReject = useCallback(() => {
+    if (!identifier) {
+      return;
+    }
+    void rejectNotification(identifier).catch((error) => {
+      console.error("Failed to reject notification", error);
+    });
+  }, [identifier]);
 
-  const rejectNote = () => {
-    void reject_notification(id)
-  }
+  const displayName = name?.trim() || t("notifications.fallback.user");
+  const notificationType = typeof type === "string" ? type : "notification_event";
 
-
-
-  const displayName = name ?? "Unknown user";
-  const notificationType =
-    typeof type === "string" ? type : "notification_event";
-  const actionText =
+  const actionKey =
     notificationType === "user_signup"
-      ? "requests permission to have access"
+      ? "notifications.action.accessRequest"
       : notificationType === "sheet_approval"
-      ? "request permission to publish the sheet"
-      : "sent a notification";
-  const scopeLabel =
+      ? "notifications.action.sheetApproval"
+      : "notifications.action.generic";
+
+  const scopeKey =
     notificationType === "user_signup"
-      ? "Access"
+      ? "notifications.scope.access"
       : notificationType === "sheet_approval"
-      ? "Sheet"
-      : "Notification";
+      ? "notifications.scope.sheet"
+      : "notifications.scope.generic";
+
   const organizationAndSheet = [user_organization, sheet_title]
-    .filter(Boolean)
+    .filter((value) => typeof value === "string" && value.trim().length > 0)
     .join(" ");
 
   return (
     <DropdownItem className="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5">
-      <span className="block">
+      <span className="block w-full">
         <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
-          <span className="font-medium text-gray-800 dark:text-white/90">
-            {displayName}
-          </span>
-          <span>{actionText}</span>
+          <span className="font-medium text-gray-800 dark:text-white/90">{displayName}</span>
+          <span>{t(actionKey)}</span>
           {organizationAndSheet && (
-            <span className="font-medium text-gray-800 dark:text-white/90">
-              {organizationAndSheet}
-            </span>
+            <span className="font-medium text-gray-800 dark:text-white/90">{organizationAndSheet}</span>
           )}
         </span>
-        <span className="flex w-full flex-row items-center justify-between">
+        <span className="flex w-full items-center justify-between">
           <span className="flex items-center gap-2 text-theme-xs text-gray-500 dark:text-gray-400">
-          <span>{scopeLabel}</span>
-          <span className="h-1 w-1 rounded-full bg-gray-400"></span>
-          <span>{formatRelativeTime(created_at)}</span>
-        </span>
+            <span>{t(scopeKey)}</span>
+            <span className="h-1 w-1 rounded-full bg-gray-400"></span>
+            <span>{formatRelativeTime(created_at)}</span>
+          </span>
           <span className="flex flex-row gap-2">
-               <svg
-                   width="17"
-                   height="16"
-                   viewBox="0 0 17 16"
-                   fill="none"
-                   xmlns="http://www.w3.org/2000/svg"
-                   onClick={rejectNote}
-               >
-              <path
+            <button
+              type="button"
+              onClick={handleReject}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-error-500 transition hover:bg-error-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-error-500 dark:hover:bg-error-500/10"
+              aria-label={t("actions.reject")}
+            >
+              <svg
+                width="16"
+                height="16"
+                viewBox="0 0 16 16"
+                fill="currentColor"
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
                   fillRule="evenodd"
                   clipRule="evenodd"
                   d="M4.05394 4.78033C3.76105 4.48744 3.76105 4.01256 4.05394 3.71967C4.34684 3.42678 4.82171 3.42678 5.1146 3.71967L8.33437 6.93944L11.5521 3.72173C11.845 3.42883 12.3199 3.42883 12.6127 3.72173C12.9056 4.01462 12.9056 4.48949 12.6127 4.78239L9.39503 8.0001L12.6127 11.2178C12.9056 11.5107 12.9056 11.9856 12.6127 12.2785C12.3198 12.5713 11.845 12.5713 11.5521 12.2785L8.33437 9.06076L5.11462 12.2805C4.82173 12.5734 4.34685 12.5734 4.05396 12.2805C3.76107 11.9876 3.76107 11.5127 4.05396 11.2199L7.27371 8.0001L4.05394 4.78033Z"
-                  fill="red"
-              />
-            </svg>
-            <svg
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              onClick={handleApprove}
+              className="inline-flex h-7 w-7 items-center justify-center rounded-full text-success-500 transition hover:bg-success-50 focus:outline-none focus-visible:ring-2 focus-visible:ring-success-500 dark:hover:bg-success-500/10"
+              aria-label={t("actions.approve")}
+            >
+              <svg
                 width="16"
                 height="16"
                 viewBox="0 0 16 16"
                 fill="none"
                 xmlns="http://www.w3.org/2000/svg"
-                onClick={approveNote}
-            >
-            <path
-                d="M13.4017 4.35986L6.12166 11.6399L2.59833 8.11657"
-                stroke="green"
-                strokeWidth="1.8"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-            />
-          </svg>
+              >
+                <path
+                  d="M13.4017 4.35986L6.12166 11.6399L2.59833 8.11657"
+                  stroke="currentColor"
+                  strokeWidth="1.8"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                />
+              </svg>
+            </button>
           </span>
         </span>
-
       </span>
     </DropdownItem>
   );
 }
 
 export default function NotificationDropdown() {
+  const { t } = useLocale();
   const [isOpen, setIsOpen] = useState(false);
   const [notifying, setNotifying] = useState(false);
   const [notifications, setNotifications] = useState<NotificationRecord[]>([]);
@@ -207,32 +205,16 @@ export default function NotificationDropdown() {
 
       try {
         const { status, data } = await getNotification(mergedParams);
+
         if (status >= 200 && status < 300) {
-          let resolvedItems = extractNotifications(data);
-          let resolvedPage = mergedParams.page ?? DEFAULT_PAGE;
-          let reachedEnd =
-            resolvedItems.length < (mergedParams.page_size ?? pageSize);
+          const extracted = extractNotifications(data);
+          const reachedEnd = extracted.length < (mergedParams.page_size ?? pageSize);
+          const resolvedPage = mergedParams.page ?? DEFAULT_PAGE;
 
-          if (resolvedPage !== DEFAULT_PAGE && resolvedItems.length === 0) {
-            const fallbackParams: GetNotificationParams = {
-              page: DEFAULT_PAGE,
-              page_size: mergedParams.page_size,
-            };
-            const { status: fallbackStatus, data: fallbackData } =
-              await getNotification(fallbackParams);
-
-            if (fallbackStatus >= 200 && fallbackStatus < 300) {
-              resolvedItems = extractNotifications(fallbackData);
-              resolvedPage = DEFAULT_PAGE;
-              reachedEnd = true;
-            } else {
-              console.warn("Unable to retrieve notifications.", fallbackStatus);
-              return;
-            }
-          }
-
-          setNotifications(resolvedItems);
-          setNotifying(resolvedItems.length > 0);
+          setNotifications((prev) =>
+            resolvedPage === DEFAULT_PAGE ? extracted : [...prev, ...extracted],
+          );
+          setNotifying(extracted.length > 0);
           setCurrentPage(resolvedPage);
           setIsLastPage(reachedEnd);
         } else {
@@ -249,18 +231,18 @@ export default function NotificationDropdown() {
     void loadNotifications();
   }, [loadNotifications]);
 
-  function toggleDropdown() {
+  const toggleDropdown = useCallback(() => {
     setIsOpen((prev) => !prev);
-  }
+  }, []);
 
-  function closeDropdown() {
+  const closeDropdown = useCallback(() => {
     setIsOpen(false);
-  }
+  }, []);
 
-  const handleClick = () => {
+  const handleClick = useCallback(() => {
     toggleDropdown();
     setNotifying(false);
-  };
+  }, [toggleDropdown]);
 
   const handleLoadMore = () => {
     const nextPage = isLastPage ? DEFAULT_PAGE : currentPage + 1;
@@ -272,6 +254,7 @@ export default function NotificationDropdown() {
       <button
         className="relative dropdown-toggle flex h-11 w-11 items-center justify-center rounded-full border border-gray-200 bg-white text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
         onClick={handleClick}
+        aria-label={t("notifications.title")}
       >
         <span
           className={`absolute right-0 top-0.5 z-10 h-2 w-2 rounded-full bg-orange-400 ${
@@ -286,6 +269,7 @@ export default function NotificationDropdown() {
           height="20"
           viewBox="0 0 20 20"
           xmlns="http://www.w3.org/2000/svg"
+          aria-hidden
         >
           <path
             fillRule="evenodd"
@@ -302,11 +286,12 @@ export default function NotificationDropdown() {
       >
         <div className="mb-3 flex items-center justify-between border-b border-gray-100 pb-3 dark:border-gray-700">
           <h5 className="text-lg font-semibold text-gray-800 dark:text-gray-200">
-            Notification
+            {t("notifications.title")}
           </h5>
           <button
             onClick={toggleDropdown}
             className="dropdown-toggle text-gray-500 transition hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+            aria-label={t("actions.close")}
           >
             <svg
               className="fill-current"
@@ -314,6 +299,7 @@ export default function NotificationDropdown() {
               height="24"
               viewBox="0 0 24 24"
               xmlns="http://www.w3.org/2000/svg"
+              aria-hidden
             >
               <path
                 fillRule="evenodd"
@@ -327,15 +313,13 @@ export default function NotificationDropdown() {
         <ul className="custom-scrollbar flex h-auto flex-col overflow-y-auto">
           {notifications.length === 0 ? (
             <li className="px-4 py-6 text-center text-theme-sm text-gray-500 dark:text-gray-400">
-              No notifications yet.
+              {t("notifications.empty")}
             </li>
           ) : (
             notifications.map((notification, index) => {
               const key =
                 notification.id ??
-                `${notification.type ?? "notification"}-${
-                  notification.created_at ?? index
-                }-${index}`;
+                `${notification.type ?? "notification"}-${notification.created_at ?? index}-${index}`;
               return (
                 <li key={key}>
                   <NotificationCard notification={notification} />
@@ -349,7 +333,7 @@ export default function NotificationDropdown() {
           onClick={handleLoadMore}
           className="mt-3 block rounded-lg border border-gray-300 bg-white px-4 py-2 text-center text-sm font-medium text-gray-700 hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-400 dark:hover:bg-gray-700"
         >
-          More Notifications
+          {t("notifications.loadMore")}
         </button>
       </Dropdown>
     </div>

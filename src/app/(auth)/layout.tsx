@@ -40,11 +40,11 @@ export default async function AuthLayout({
                   <Image
                     width={231}
                     height={48}
-                    src="./images/logo/auth-logo.svg"
+                    src="/images/logo/logo-text.png"
                     alt="Logo"
                   />
                 </Link>
-                <p className="text-center text-gray-400 dark:text-white/60">
+                <p className="text-center text-gray-400 dark:text-white/60 text-center">
                   Create polls, collect insights, and understand what matters most.
                 </p>
               </div>

@@ -755,7 +755,7 @@ export default function RecentOrders() {
                               <button
                                 type="button"
                                 className="inline-flex disabled:cursor-not-allowed disabled:opacity-50"
-                                aria-label={t('actions.finish', { defaultValue: 'Finish' })}
+                                aria-label={t('actions.finish')}
                                 onClick={(event) => handleFinishSheet(event, sheet)}
                                 disabled={isBusy}
                               >

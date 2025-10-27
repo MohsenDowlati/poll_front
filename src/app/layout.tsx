@@ -1,6 +1,6 @@
 "use client";
 
-import { Outfit } from 'next/font/google';
+import { Outfit, Vazirmatn } from 'next/font/google';
 import './globals.css';
 
 import { SidebarProvider } from '@/context/SidebarContext';
@@ -10,6 +10,14 @@ import React from "react";
 
 const outfit = Outfit({
   subsets: ["latin"],
+  display: "swap",
+  variable: "--font-outfit",
+});
+
+const vazirmatn = Vazirmatn({
+  subsets: ["arabic"],
+  display: "swap",
+  variable: "--font-vazirmatn",
 });
 
 export default function RootLayout({
@@ -21,7 +29,7 @@ export default function RootLayout({
     <html lang="en" suppressHydrationWarning>
       <body
         suppressHydrationWarning
-        className={`${outfit.className} dark:bg-gray-900`}
+        className={`${outfit.variable} ${vazirmatn.variable} dark:bg-gray-900`}
       >
         <LocalizationProvider>
           <ThemeProvider>

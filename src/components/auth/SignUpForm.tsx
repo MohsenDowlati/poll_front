@@ -131,7 +131,7 @@ export default function SignUpForm() {
                       type="text"
                       id="fname"
                       name="fname"
-                      placeholder="Enter your name"
+                      placeholder={t('auth.inputs.namePlaceholder')}
                       onChange={handleName}
                     />
                   </div>
@@ -144,7 +144,7 @@ export default function SignUpForm() {
                       type="text"
                       id="lname"
                       name="lname"
-                      placeholder="Your Organization name"
+                      placeholder={t('auth.inputs.organizationPlaceholder')}
                       onChange={handleOrganization}
                     />
                   </div>
@@ -163,7 +163,7 @@ export default function SignUpForm() {
                   </Label>
                   <div className="relative" dir="ltr">
                     <Input
-                      placeholder="Enter your password"
+                      placeholder={t('auth.inputs.passwordPlaceholder')}
                       type={showPassword ? "text" : "password"}
                       onChange={handlePassword}
                     />
@@ -191,12 +191,12 @@ export default function SignUpForm() {
 
             <div className="mt-5">
               <p className="text-sm font-normal text-center text-gray-700 dark:text-gray-400 sm:text-start">
-                Already have an account?
+                {t('auth.signup.alreadyHaveAccount')}{" "}
                 <Link
                   href="/"
                   className="text-brand-500 hover:text-brand-600 dark:text-brand-400"
                 >
-                  Sign In
+                  {t('auth.signup.signInLink')}
                 </Link>
               </p>
             </div>

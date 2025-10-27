@@ -1,4 +1,5 @@
 import React from "react";
+import { useLocale } from "@/hooks/useLocale";
 import SingleChart from "@/components/charts/circular/SingleChart";
 import BarChartOne from "@/components/charts/bar/BarChartOne";
 
@@ -21,12 +22,24 @@ const PollResult: React.FC<ComponentCardProps> = ({
     participants,
     votes
                                                 }) => {
+    const { t } = useLocale();
     const normalizedType = type.toLowerCase();
     const isTextType = normalizedType === "text" || normalizedType === "opinion";
     const isSingleType = normalizedType === "single" || normalizedType === "single_choice";
     const isMultiType = normalizedType === "multiple" || normalizedType === "multi_choice";
     const isSlideType = normalizedType === "slide" || normalizedType === "slider";
-    const categoriesLabel = category.length > 0 ? category.join(", ") : undefined;
+    const translateCategory = (rawValue: unknown) => {
+        const value = typeof rawValue === "string" ? rawValue : String(rawValue ?? "");
+        const normalized = value.trim().toLowerCase();
+        if (!normalized) {
+            return value;
+        }
+        if (normalized === "uncategorized") {
+            return t("sheet.poll.uncategorized");
+        }
+        return t(`sheet.poll.categories.${normalized}`, { defaultValue: value });
+    };
+    const categoriesLabel = category.length > 0 ? category.map((item) => translateCategory(item)).join(", ") : undefined;
 
 
 
@@ -43,7 +56,7 @@ const PollResult: React.FC<ComponentCardProps> = ({
                             {categoriesLabel}
                         </span>
                     ) : null}
-                    <span>total votes: {participants}</span>
+                    <span>{t("sheet.poll.totalVotes", { count: participants })}</span>
                 </div>
             </div>
             <div>
@@ -54,7 +67,7 @@ const PollResult: React.FC<ComponentCardProps> = ({
                                 <div key={index} className="flex flex-row gap-2 items-center">
                                     <div className="h-3 w-3 rounded-full bg-blue-950" />
                                     <p className="text-gray-700 dark:text-gray-400 text-sm lg:text-lg">{option}</p>
-                                    <p>vote: {votes[index] ?? 0}</p>
+                                    <p>{t("sheet.poll.voteCount", { count: votes[index] ?? 0 })}</p>
                                 </div>
                             ))}
                         </div>
