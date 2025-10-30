@@ -1,5 +1,4 @@
 import { PollRecord } from '@/services/poll/poll';
-import {number} from "motion-dom";
 
 export type PollType = 'single_choice' | 'multi_choice' | 'slide' | 'opinion';
 
@@ -88,8 +87,9 @@ export function buildSlideVotes(optionsLength: number, orderIndices?: number[]):
   return votes;
 }
 
-export function buildOpinionVotes(value: string): string[] | number[] {
-  return [1];
+export function buildOpinionVotes(value: string): string[] {
+  // For opinion polls we return the free-text response as an array of strings
+  return [value];
 }
 
 export function buildVotesByType(

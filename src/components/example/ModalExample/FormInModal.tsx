@@ -94,7 +94,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
           : defaultOptions,
     );
     openModal();
-  }, [editingPoll, openModal]);
+  }, [editingPoll, openModal, defaultOptions]);
 
   const isTextType = type === pollTypes.text;
 

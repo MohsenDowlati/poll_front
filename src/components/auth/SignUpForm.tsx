@@ -180,6 +180,13 @@ export default function SignUpForm() {
                   </div>
                 </div>
                 {/* <!-- Checkbox --> */}
+                <div>
+                  <Checkbox
+                    checked={isChecked}
+                    onChange={(checked: boolean) => setIsChecked(checked)}
+                    label={t('auth.signup.agreeTerms')}
+                  />
+                </div>
                 {/* <!-- Button --> */}
                 <div>
                   <Button className="w-full" size="sm" disabled={!isChecked} type="submit">

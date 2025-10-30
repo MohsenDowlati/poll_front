@@ -17,6 +17,7 @@ export default function Text({ id, title, onChangeOpinion }: opinionType) {
             <h1 className="leading-tight text-base font-semibold md:text-lg lg:text-2xl my-2">{title}</h1>
             <div className="my-[8px] mx-[2px] flex justify-center gap-2 lg:mx-[18px]">
         <textarea
+            id={id}
             value={opinion}
             onChange={(e) => { const v = e.target.value; setOpinion(v); onChangeOpinion?.(v); }}
             className="w-full min-h-[300px] bg-[#f5f5f5]/70 rounded-[15px] p-3 outline-none resize-none text-left font-normal text-base m-0 md:text-lg lg:w-[90%]"

@@ -32,7 +32,7 @@ export default function SingleChart({
   }
 
   return (
-      <div className="max-w-full overflow-x-auto custom-scrollbar grid grid-cols-1 grid-rows-[auto_1fr] ">
+      <div className={`max-w-full overflow-x-auto custom-scrollbar grid grid-cols-1 grid-rows-[auto_1fr] ${className}`}>
         <div id="chartOne" className="min-w-[1000px] grid place-items-center py-5">
           <DonutChart data={constructData()} />
         </div>

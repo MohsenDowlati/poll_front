@@ -2,7 +2,6 @@
 
 import React, { useEffect, useState } from 'react';
 import Select from "@/components/form/Select";
-import {useLocale} from "@/hooks/useLocale";
 
 interface VenueOption {
     label: string;

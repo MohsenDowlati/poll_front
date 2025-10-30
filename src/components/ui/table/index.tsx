@@ -22,7 +22,7 @@ interface TableBodyProps {
 interface TableRowProps {
     children: ReactNode,
     className?: string,
-    onClick?: (event:any) => void
+    onClick?: React.MouseEventHandler<HTMLTableRowElement>
 }
 
 // Props for TableCell
