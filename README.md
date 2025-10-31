@@ -172,35 +172,3 @@ TailAdmin Next.js Free Version is released under the MIT License.
 
 If you find this project helpful, please consider giving it a star on GitHub. Your support helps us continue developing and maintaining this template.
 
-## Docker & CI
-
-This repository includes a simple Dockerfile and a GitHub Actions workflow to build and (optionally) publish a Docker image.
-
-Local Docker
-
-- Build the image locally:
-
-```powershell
-docker build -t tailadmin:local .
-```
-
-- Run with docker-compose (builds and runs on port 3000):
-
-```powershell
-docker-compose up --build
-```
-
-CI / CD (GitHub Actions)
-
-The workflow at `.github/workflows/ci-cd.yml` performs linting and a production build for pull requests and pushes to `main`. When a commit is pushed to `main`, the workflow also builds and pushes a Docker image.
-
-To enable image publishing, set the following repository secrets:
-
-- `REGISTRY` — registry hostname (for example `ghcr.io` or `docker.io`)
-- `REGISTRY_USERNAME` — username for the registry (for GitHub Packages with ghcr.io use your GitHub username)
-- `REGISTRY_PASSWORD` — password or token (for GitHub Packages you can use `GITHUB_TOKEN` or a personal access token with `write:packages`)
-
-Notes
-
-- The workflow uses Node.js 20. Adjust `node-version` in the workflow if you need a different Node version.
-- The Dockerfile uses a multi-stage build to keep the final image small.

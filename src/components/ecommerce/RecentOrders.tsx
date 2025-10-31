@@ -790,14 +790,15 @@ export default function RecentOrders() {
             })}
 
             {isLoading && sheets.length === 0 && (
-              <TableRow>
-                <TableCell
-                  colSpan={canManageSheets ? 6 : 5}
-                  className="py-6 text-center text-sm text-gray-500 dark:text-gray-400"
-                >
-                  {t('tables.loading')}
-                </TableCell>
-              </TableRow>
+              Array.from({ length: 5 }).map((_, idx) => (
+                <TableRow key={`skeleton-row-${idx}`}>
+                  {[...Array(canManageSheets ? 6 : 5)].map((__, cidx) => (
+                    <TableCell key={`skeleton-cell-${idx}-${cidx}`}>
+                      <div className="animate-pulse h-5 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+                    </TableCell>
+                  ))}
+                </TableRow>
+              ))
             )}
 
             {showEmptyState && (

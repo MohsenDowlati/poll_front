@@ -453,14 +453,15 @@ export default function UserTable() {
               })}
 
               {isLoading && tableRows.length === 0 && (
-                <TableRow>
-                  <TableCell
-                    colSpan={6}
-                    className="px-5 py-6 text-center text-sm text-gray-500 dark:text-gray-400"
-                  >
-                    {t("userTable.loading")}
-                  </TableCell>
-                </TableRow>
+                Array.from({ length: 5 }).map((_, idx) => (
+                  <TableRow key={`skeleton-row-${idx}`}>
+                    {[...Array(6)].map((__, cidx) => (
+                      <TableCell key={`skeleton-cell-${idx}-${cidx}`}>
+                        <div className="animate-pulse h-5 bg-gray-200 dark:bg-gray-700 rounded w-full" />
+                      </TableCell>
+                    ))}
+                  </TableRow>
+                ))
               )}
 
               {showEmptyState && (
