@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useModal } from "@/hooks/useModal";
 
 import Button from "../../ui/button/Button";
@@ -12,6 +12,7 @@ import {
   extractPollPaginationMeta,
   fetchAdminPolls,
 } from "@/services/poll/poll";
+import { exportSheet } from "@/services/sheet/sheet";
 import { useLocale } from "@/hooks/useLocale";
 import { getAuthTokenFromCookie } from "@/utils/authToken";
 import { decodeJwtPayload } from "@/utils/jwt";
@@ -41,6 +42,7 @@ export default function FullScreenModal({
     openModal: openFullscreenModal,
     closeModal: closeFullscreenModal,
   } = useModal();
+  const modalContentRef = useRef<HTMLDivElement | null>(null);
 
   const [page, setPage] = useState(1);
   const [polls, setPolls] = useState<AdminPollSummary[]>([]);
@@ -48,6 +50,8 @@ export default function FullScreenModal({
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [canExportResults, setCanExportResults] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const [exportError, setExportError] = useState<string | null>(null);
 
   const extractCategories = useCallback((raw: unknown): string[] => {
     if (Array.isArray(raw)) {
@@ -131,7 +135,9 @@ export default function FullScreenModal({
     setTotalPages(1);
     setError(null);
     setIsLoading(false);
-    }, [normalizedSheetId]);
+    setExportError(null);
+    setIsExporting(false);
+  }, [normalizedSheetId]);
 
   useEffect(() => {
     if (!isFullscreenModalOpen) {
@@ -140,6 +146,8 @@ export default function FullScreenModal({
       setIsLoading(false);
       setTotalPages(1);
       setPage(1);
+      setExportError(null);
+      setIsExporting(false);
       return;
     }
 
@@ -252,10 +260,167 @@ export default function FullScreenModal({
     openFullscreenModal();
   };
 
-  const handleSave = (format: "pdf" | "csv") => {
-    console.log(`Saving changes as ${format.toUpperCase()}...`);
-    closeFullscreenModal();
+  const buildFileName = useCallback(
+    (extension: string) => {
+      const fallbackId = normalizedSheetId || "sheet";
+      const baseName = sheetTitle?.trim() || `sheet-${fallbackId}`;
+      const sanitized = baseName
+        .replace(/[\\/:*?"<>|]+/g, "_")
+        .replace(/\s+/g, "-")
+        .replace(/-+/g, "-")
+        .replace(/^[-_]+|[-_]+$/g, "");
+
+      return `${sanitized || `sheet-${fallbackId}`}.${extension}`;
+    },
+    [normalizedSheetId, sheetTitle],
+  );
+
+  const triggerDownload = (payload: Blob | string, fileName: string) => {
+    if (typeof window === "undefined") {
+      console.warn("Window is undefined. Skipping file download.");
+      return;
+    }
+
+    const link = document.createElement("a");
+    let url: string;
+
+    if (typeof payload === "string") {
+      url = payload;
+    } else {
+      url = window.URL.createObjectURL(payload);
+    }
+
+    link.href = url;
+    link.download = fileName;
+    link.rel = "noopener";
+    link.style.display = "none";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    if (typeof payload !== "string") {
+      window.URL.revokeObjectURL(url);
+    }
   };
+
+  const handleCsvExport = useCallback(async () => {
+    if (!hasSheetId) {
+      return;
+    }
+
+    setExportError(null);
+    setIsExporting(true);
+
+    try {
+      const response = await exportSheet(normalizedSheetId);
+      let fileName: string | undefined;
+      const headers = (response.headers ?? {}) as Record<string, string | undefined>;
+      const disposition =
+        headers["content-disposition"] ?? headers["Content-Disposition"];
+
+      if (disposition) {
+        const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
+        const quotedMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+        const rawFileName = (utfMatch?.[1] ?? quotedMatch?.[1])?.trim();
+        if (rawFileName) {
+          try {
+            fileName = decodeURIComponent(rawFileName.replace(/^["']|["']$/g, ""));
+          } catch {
+            fileName = rawFileName.replace(/^["']|["']$/g, "");
+          }
+        }
+      }
+
+      if (!fileName || fileName.trim().length === 0) {
+        fileName = buildFileName("xlsx");
+      }
+
+      triggerDownload(response.data, fileName);
+      closeFullscreenModal();
+    } catch (exportErr) {
+      console.error("Failed to export sheet", exportErr);
+      setExportError(t("tables.error.exportSheet"));
+    } finally {
+      setIsExporting(false);
+    }
+  }, [buildFileName, closeFullscreenModal, hasSheetId, normalizedSheetId, t]);
+
+  const handleSnapshotExport = useCallback(
+    async (format: "pdf" | "jpg") => {
+      if (!hasSheetId) {
+        return;
+      }
+
+      if (!modalContentRef.current) {
+        setExportError(t("tables.error.exportSnapshot"));
+        return;
+      }
+
+      if (typeof window === "undefined") {
+        setExportError(t("tables.error.exportSnapshot"));
+        return;
+      }
+
+      setExportError(null);
+      setIsExporting(true);
+
+      try {
+        const element = modalContentRef.current;
+        const htmlToImage = await import("html-to-image");
+        const deviceRatio = window.devicePixelRatio || 1;
+        const pixelRatio = Math.min(3, deviceRatio * 1.5);
+        const computed = window.getComputedStyle(element);
+        const backgroundColor =
+          computed.getPropertyValue("background-color") && computed.getPropertyValue("background-color") !== "rgba(0, 0, 0, 0)"
+            ? computed.getPropertyValue("background-color")
+            : "#ffffff";
+
+        const dataUrl = await htmlToImage.toJpeg(element, {
+          quality: 0.95,
+          pixelRatio,
+          cacheBust: true,
+          skipFonts: true,
+          backgroundColor,
+        });
+
+        if (format === "jpg") {
+          triggerDownload(dataUrl, buildFileName("jpg"));
+        } else {
+          const { jsPDF } = await import("jspdf");
+          const pdf = new jsPDF("p", "mm", "a4");
+          const imgProps = pdf.getImageProperties(dataUrl);
+          const pdfWidth = pdf.internal.pageSize.getWidth();
+          const pdfHeight = pdf.internal.pageSize.getHeight();
+          const imageRatio = Math.min(pdfWidth / imgProps.width, pdfHeight / imgProps.height);
+          const renderWidth = imgProps.width * imageRatio;
+          const renderHeight = imgProps.height * imageRatio;
+          const marginX = (pdfWidth - renderWidth) / 2;
+          const marginY = (pdfHeight - renderHeight) / 2;
+
+          pdf.addImage(dataUrl, "JPEG", marginX, marginY, renderWidth, renderHeight);
+          pdf.save(buildFileName("pdf"));
+        }
+      } catch (snapshotError) {
+        console.error("Failed to capture snapshot", snapshotError);
+        setExportError(t("tables.error.exportSnapshot"));
+      } finally {
+        setIsExporting(false);
+      }
+    },
+    [buildFileName, hasSheetId, modalContentRef, t],
+  );
+
+  const handleSave = useCallback(
+    async (format: "pdf" | "csv" | "jpg") => {
+      if (format === "csv") {
+        await handleCsvExport();
+        return;
+      }
+
+      await handleSnapshotExport(format);
+    },
+    [handleCsvExport, handleSnapshotExport],
+  );
 
   const headerTitle = sheetTitle ?? (hasSheetId ? normalizedSheetId : "");
 
@@ -272,7 +437,10 @@ export default function FullScreenModal({
         isFullscreen={true}
         showCloseButton={true}
       >
-        <div className="fixed top-0 left-0 flex flex-col justify-between w-full h-screen p-6 overflow-x-hidden overflow-y-auto bg-white dark:bg-gray-900 lg:p-10">
+        <div
+          ref={modalContentRef}
+          className="fixed top-0 left-0 flex flex-col justify-between w-full h-screen p-6 overflow-x-hidden overflow-y-auto bg-white dark:bg-gray-900 lg:p-10"
+        >
           <div>
             <h4 className="font-semibold text-gray-800 mb-1 text-title-sm dark:text-white/90">
               {t('analyze.header')}
@@ -369,19 +537,44 @@ export default function FullScreenModal({
               </div>
             )}
 
-            <div className="flex items-center justify-end w-full gap-3">
-              <Button size="sm" variant="outline" onClick={closeFullscreenModal}>
-                {t("actions.close")}
-              </Button>
-              {canExportResults && (
-                <>
-                  <Button size="sm" onClick={() => handleSave("pdf")}>
-                    {t("actions.savePdf")}
-                  </Button>
-                  <Button size="sm" onClick={() => handleSave("csv")}>
-                    {t("actions.saveCsv")}
-                  </Button>
-                </>
+            <div className="flex flex-col items-end gap-2">
+              <div className="flex items-center justify-end w-full gap-3">
+                <Button size="sm" variant="outline" onClick={closeFullscreenModal}>
+                  {t("actions.close")}
+                </Button>
+                {canExportResults && (
+                  <>
+                    <Button
+                      size="sm"
+                      onClick={() => void handleSave("pdf")}
+                      disabled={isExporting}
+                      aria-busy={isExporting}
+                    >
+                      {t("actions.savePdf")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => void handleSave("jpg")}
+                      disabled={isExporting}
+                      aria-busy={isExporting}
+                    >
+                      {t("actions.saveJpg")}
+                    </Button>
+                    <Button
+                      size="sm"
+                      onClick={() => void handleSave("csv")}
+                      disabled={isExporting}
+                      aria-busy={isExporting}
+                    >
+                      {t("actions.saveCsv")}
+                    </Button>
+                  </>
+                )}
+              </div>
+              {exportError && (
+                <p className="text-sm text-error-500 dark:text-error-400">
+                  {exportError}
+                </p>
               )}
             </div>
           </div>

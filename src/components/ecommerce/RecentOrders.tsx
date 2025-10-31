@@ -125,7 +125,11 @@ const resolveStatusMeta = (
     return { label: translate(translationKey), color: 'warning' as const };
   }
 
-  if (['approved', 'published', 'active', 'verified', 'finished'].includes(normalized)) {
+  if (normalized === 'finished') {
+    return { label: translate(translationKey), color: 'info' as const}
+  }
+
+  if (['approved', 'published', 'active', 'verified'].includes(normalized)) {
     return { label: translate(translationKey), color: 'success' as const };
   }
 
@@ -154,6 +158,50 @@ const resolveSheetIdentifier = (sheet: SheetRecord): string | number | undefined
 
   return undefined;
 };
+
+const SkeletonLine = ({
+  width,
+  height = 12,
+  className,
+}: {
+  width: number | string;
+  height?: number;
+  className?: string;
+}) => (
+  <div
+    className={`bg-gradient-to-r from-gray-200/80 via-gray-100/60 to-gray-200/80 dark:from-white/[0.18] dark:via-white/[0.08] dark:to-white/[0.16] ${className ?? ''}`}
+    style={{ width, height }}
+  />
+);
+
+const SkeletonSheetRow = ({ canManageSheets }: { canManageSheets: boolean }) => (
+  <div className="w-full animate-pulse rounded-2xl border border-gray-100/60 bg-gradient-to-br from-gray-100/60 via-white to-gray-100/30 p-4 shadow-theme-xs dark:border-gray-800/70 dark:from-white/[0.08] dark:via-white/[0.04] dark:to-white/[0.08]">
+    <div className="grid grid-cols-12 items-center gap-4">
+      <div className="col-span-4 flex flex-col gap-2">
+        <SkeletonLine width="60%" height={14} className="rounded-full" />
+        <SkeletonLine width="35%" height={10} className="rounded-full opacity-80" />
+      </div>
+      <div className="col-span-2 flex flex-col gap-2">
+        <SkeletonLine width="70%" height={12} className="rounded-full" />
+      </div>
+      <div className="col-span-2 flex flex-col gap-2">
+        <SkeletonLine width="55%" height={12} className="rounded-full" />
+      </div>
+      <div className="col-span-2 flex flex-col gap-2">
+        <SkeletonLine width={90} height={22} className="rounded-full" />
+      </div>
+      {canManageSheets && (
+        <div className="col-span-1 flex items-center gap-2">
+          <SkeletonLine width={32} height={32} className="rounded-full" />
+          <SkeletonLine width={32} height={32} className="rounded-full" />
+        </div>
+      )}
+      <div className={`${canManageSheets ? 'col-span-1' : 'col-span-2'} flex justify-end`}>
+        <SkeletonLine width={108} height={32} className="rounded-xl" />
+      </div>
+    </div>
+  </div>
+);
 
 
 
@@ -789,17 +837,14 @@ export default function RecentOrders() {
               );
             })}
 
-            {isLoading && sheets.length === 0 && (
-              Array.from({ length: 5 }).map((_, idx) => (
-                <TableRow key={`skeleton-row-${idx}`}>
-                  {[...Array(canManageSheets ? 6 : 5)].map((__, cidx) => (
-                    <TableCell key={`skeleton-cell-${idx}-${cidx}`}>
-                      <div className="animate-pulse h-5 bg-gray-200 dark:bg-gray-700 rounded w-full" />
-                    </TableCell>
-                  ))}
+            {isLoading && sheets.length === 0 &&
+              Array.from({ length: 4 }).map((_, idx) => (
+                <TableRow key={`skeleton-row-${idx}`} className="border-none">
+                  <TableCell colSpan={canManageSheets ? 6 : 5} className="py-4">
+                    <SkeletonSheetRow canManageSheets={canManageSheets} />
+                  </TableCell>
                 </TableRow>
-              ))
-            )}
+              ))}
 
             {showEmptyState && (
               <TableRow>

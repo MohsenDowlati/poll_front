@@ -3,9 +3,11 @@
 import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import LanguageDetector from 'i18next-browser-languagedetector';
-
-export const supportedLanguages = ['en', 'fa'] as const;
-export type SupportedLanguage = (typeof supportedLanguages)[number];
+import {
+  DEFAULT_LANGUAGE,
+  LANGUAGE_COOKIE_NAME,
+  supportedLanguages,
+} from './settings';
 
 const resources = {
   en: {
@@ -42,6 +44,7 @@ const resources = {
       'status.pending': 'Pending',
       'status.approved': 'Approved',
       'status.published': 'Published',
+      'status.finished': 'Finished',
       'status.active': 'Active',
       'status.verified': 'Verified',
       'status.rejected': 'Rejected',
@@ -70,8 +73,11 @@ const resources = {
       'actions.previous': 'Previous',
       'actions.saveCsv': 'Save as CSV',
       'actions.savePdf': 'Save as PDF',
+      'actions.saveJpg': 'Save as JPG',
       'common.unknown': 'Unknown',
       'tables.error.deleteSheet': 'Failed to delete sheet. Please try again.',
+      'tables.error.exportSheet': 'Failed to export sheet. Please try again.',
+      'tables.error.exportSnapshot': 'Failed to capture snapshot. Please try again.',
       'tables.error.finishSheet': 'Failed to mark sheet as finished. Please try again.',
       'tables.error.updateAdminStatus.missingIdentifier': 'Unable to determine the selected admin account.',
       'tables.error.updateAdminStatus.failed': 'Failed to update admin status. Please try again.',
@@ -106,7 +112,7 @@ const resources = {
       'sheet.poll.fields.categoryPlaceholder': 'Choose categories',
       'sheet.poll.fields.type.single': 'Single choice',
       'sheet.poll.fields.type.multi': 'Multiple choice',
-      'sheet.poll.fields.type.slider': 'Slider',
+      'sheet.poll.fields.type.slider': 'Rate',
       'sheet.poll.fields.type.opinion': 'Text response',
       'sheet.poll.optionLabel': 'Option {{index}}',
       'sheet.poll.buttons.addOption': 'Add option',
@@ -194,6 +200,7 @@ const resources = {
       'status.approved': 'تأیید شده',
       'status.published': 'منتشر شده',
       'status.active': 'فعال',
+      'status.finished': 'پایان‌ یافته',
       'status.verified': 'تأیید شده',
       'status.rejected': 'رد شده',
       'status.deleted': 'حذف شده',
@@ -223,7 +230,10 @@ const resources = {
       'actions.previous': 'قبلی',
       'actions.saveCsv': 'ذخیره به CSV',
       'actions.savePdf': 'ذخیره به PDF',
+      'actions.saveJpg': 'ذخیره به JPG',
       'common.unknown': 'نامشخص',
+      'tables.error.exportSheet': 'صادر کردن فرم انجام نشد. لطفاً دوباره تلاش کنید.',
+      'tables.error.exportSnapshot': 'گرفتن تصویر انجام نشد. لطفاً دوباره تلاش کنید.',
       'tables.error.deleteSheet': 'حذف فرم انجام نشد. لطفاً دوباره تلاش کنید.',
       'tables.error.finishSheet': 'ثبت پایان فرم انجام نشد. لطفاً دوباره تلاش کنید.',
       'tables.error.updateAdminStatus.missingIdentifier': 'شناسه حساب مدیر انتخاب‌شده پیدا نشد.',
@@ -259,7 +269,7 @@ const resources = {
       'sheet.poll.fields.categoryPlaceholder': 'دسته‌ها را انتخاب کنید',
       'sheet.poll.fields.type.single': 'یک گزینه‌ای',
       'sheet.poll.fields.type.multi': 'چند گزینه‌ای',
-      'sheet.poll.fields.type.slider': 'اسلایدی',
+      'sheet.poll.fields.type.slider': 'رتبه‌بندی' ,
       'sheet.poll.fields.type.opinion': 'متنی',
       'sheet.poll.optionLabel': 'گزینه {{index}}',
       'sheet.poll.buttons.addOption': 'افزودن گزینه',
@@ -320,13 +330,15 @@ if (!i18n.isInitialized) {
     .use(initReactI18next)
     .init({
       resources,
-      fallbackLng: 'fa',
+      fallbackLng: DEFAULT_LANGUAGE,
       supportedLngs: supportedLanguages,
       nonExplicitSupportedLngs: true,
       load: 'languageOnly',
       detection: {
-        order: ['localStorage', 'navigator', 'htmlTag'],
-        caches: ['localStorage'],
+        order: ['cookie', 'localStorage', 'navigator', 'htmlTag'],
+        caches: ['cookie', 'localStorage'],
+        lookupCookie: LANGUAGE_COOKIE_NAME,
+        cookieMinutes: 525600, // 365 days
       },
       interpolation: {
         escapeValue: false,

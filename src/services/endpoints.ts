@@ -19,6 +19,7 @@
         create: '/sheet/create',
         delete: '/sheet/delete',
         finish: '/sheet/finish',
+        exportSheet: (id: string | number) => `/sheet/export/${encodeURIComponent(String(id))}`,
     },
     poll: {
         fetch: '/client/fetch',

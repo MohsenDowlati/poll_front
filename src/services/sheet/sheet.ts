@@ -196,6 +196,12 @@ export const finishSheet = (id: string | number) => {
   );
 };
 
+export const exportSheet = (id: string | number) => {
+  return http.get<Blob>(endpoints.sheet.exportSheet(id), {
+    responseType: 'blob',
+  });
+};
+
 export const extractSheetList = (
   payload: SheetListResponse | SheetRecord[] | null | undefined,
 ): SheetRecord[] => {

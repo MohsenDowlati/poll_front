@@ -326,24 +326,6 @@ export default function PollMaker({id}: {id: string}) {
     return (
         <section className="min-h-screen bg-gray-100 p-[1px] mb-6 w-full lg:p-8">
             <div className="mx-auto px-[1px] flex justify-center flex-col items-center lg:px-4 w-full">
-                {isLoading && polls.length === 0 && (
-                    <div className="flex flex-col gap-8 w-full px-8 mb-8" data-testid="poll-skeletons">
-                        {Array.from({ length: 3 }).map((_, idx) => (
-                            <div
-                                key={idx}
-                                className="animate-pulse rounded-[18px] bg-gray-200/80 dark:bg-gray-700/40 h-[110px] w-full p-6 flex flex-col gap-3 shadow-lg"
-                            >
-                                <div className="h-5 bg-gray-300 dark:bg-gray-600 rounded w-3/4 mb-3" />
-                                <div className="flex gap-2">
-                                    <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/3" />
-                                    <div className="h-4 bg-gray-300 dark:bg-gray-600 rounded w-1/4" />
-                                    <div className="h-4 bg-gray-200 dark:bg-gray-700 rounded w-1/6 ml-auto" />
-                                </div>
-                            </div>
-                        ))}
-                    </div>
-                )}
-                {isLoading && <div className="loader" aria-label="Loading polls" />}
                 {error && (
                     <div className="mb-4 w-full rounded-md bg-red-50 p-3 text-sm text-red-700" role="alert">
                         {error}
@@ -434,6 +416,35 @@ export default function PollMaker({id}: {id: string}) {
                         !isLoading && (
                             <p className="px-6 text-center text-white">No polls available at the moment.</p>
                         )
+                    )}
+
+                    {isLoading && polls.length === 0 && (
+                        <div className="flex flex-col gap-6 px-6">
+                            {Array.from({ length: 3 }).map((_, idx) => (
+                                <div
+                                    key={`poll-skeleton-${idx}`}
+                                    className="animate-pulse rounded-2xl border border-white/40 bg-[#85bbf1]/20 p-6 shadow-lg backdrop-blur-sm"
+                                >
+                                    <div className="mb-4 flex items-center justify-between">
+                                        <span className="h-4 w-1/3 rounded-full bg-white/40" />
+                                        <span className="h-4 w-8 rounded-full bg-white/30" />
+                                    </div>
+                                    <div className="mb-6 h-3 w-3/4 rounded-full bg-white/40" />
+                                    <div className="grid gap-3">
+                                        {Array.from({ length: 4 }).map((__, optionIdx) => (
+                                            <div
+                                                key={`poll-skeleton-${idx}-option-${optionIdx}`}
+                                                className="flex items-center gap-3 rounded-xl border border-white/30 bg-white/25 px-4 py-3"
+                                            >
+                                                <span className="h-4 w-20 rounded-full bg-white/40" />
+                                                <span className="h-6 w-full rounded-full bg-gradient-to-r from-white/40 via-white/25 to-white/40" />
+                                                <span className="h-5 w-5 rounded-md border border-white/50 bg-white/10" />
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
                     )}
                 </article>
             </div>
