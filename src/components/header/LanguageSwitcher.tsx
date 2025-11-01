@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useLocale } from '@/hooks/useLocale';
-import type { SupportedLanguage } from '@/i18n/config';
+import type { SupportedLanguage } from '@/i18n/settings';
 
 const LanguageSwitcher: React.FC = () => {
   const { language, changeLanguage, t } = useLocale();
