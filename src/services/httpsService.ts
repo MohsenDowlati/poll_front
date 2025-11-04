@@ -1,21 +1,50 @@
 import axios, { AxiosInstance, type AxiosRequestHeaders } from 'axios';
 import { getAuthTokenFromCookie } from '@/utils/authToken';
 
-const baseURL = process.env.NEXT_PUBLIC_API_BASE_URL;
-
-if (!baseURL) {
-  console.warn('NEXT_PUBLIC_API_BASE_URL is not set. HTTP client will use relative URLs.');
+declare global {
+  interface Window {
+    __ENV__?: Record<string, string | undefined>;
+  }
 }
 
+const resolveBaseURL = (): string | undefined => {
+  const value =
+    typeof window !== 'undefined'
+      ? window.__ENV__?.NEXT_PUBLIC_API_BASE_URL ?? process.env.NEXT_PUBLIC_API_BASE_URL
+      : process.env.NEXT_PUBLIC_API_BASE_URL;
+
+  return value?.trim() || undefined;
+};
+
+let hasLoggedMissingBaseURL = false;
+
 const http: AxiosInstance = axios.create({
-  baseURL: baseURL || undefined,
   headers: {
     'Content-Type': 'application/json',
   },
   withCredentials: true,
 });
 
+const initialBaseURL = resolveBaseURL();
+
+if (!initialBaseURL) {
+  hasLoggedMissingBaseURL = true;
+  console.warn('NEXT_PUBLIC_API_BASE_URL is not set. HTTP client will use relative URLs.');
+} else {
+  http.defaults.baseURL = initialBaseURL;
+}
+
 http.interceptors.request.use((config) => {
+  if (!config.baseURL) {
+    const runtimeBaseURL = resolveBaseURL();
+    if (runtimeBaseURL) {
+      config.baseURL = runtimeBaseURL;
+    } else if (!hasLoggedMissingBaseURL) {
+      hasLoggedMissingBaseURL = true;
+      console.warn('NEXT_PUBLIC_API_BASE_URL is not set. HTTP client will use relative URLs.');
+    }
+  }
+
   const token = getAuthTokenFromCookie();
   if (token) {
     const authValue = `Bearer ${token}`;

@@ -64,6 +64,12 @@ git clone https://github.com/TailAdmin/free-nextjs-admin-dashboard.git
     yarn dev
     ```
 
+## Environment Configuration
+
+- `NEXT_PUBLIC_API_BASE_URL` &mdash; Base URL for the back-end API.  
+  Define this variable in your hosting provider (e.g., Runflare) so the deployed app reads it from the environment at runtime.  
+  The runtime configuration is injected automatically; no `.env` file is required in production.
+
 ## Components
 
 TailAdmin is a pre-designed starting point for building a web-based dashboard using Next.js and Tailwind CSS. The template includes:

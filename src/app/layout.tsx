@@ -10,6 +10,8 @@ import {
   normalizeLanguage,
 } from '@/i18n/settings';
 
+export const dynamic = 'force-dynamic';
+
 const outfit = Outfit({
   subsets: ["latin"],
   display: "swap",
@@ -31,6 +33,9 @@ export default async function RootLayout({
   const cookieLanguage = cookieStore.get(LANGUAGE_COOKIE_NAME)?.value ?? DEFAULT_LANGUAGE;
   const initialLanguage = normalizeLanguage(cookieLanguage);
   const direction = getLanguageDirection(initialLanguage);
+  const runtimeEnv = {
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? '',
+  };
 
   return (
     <html lang={initialLanguage} dir={direction} suppressHydrationWarning>
@@ -39,6 +44,13 @@ export default async function RootLayout({
         suppressHydrationWarning
         className={`${outfit.variable} ${vazirmatn.variable} dark:bg-gray-900`}
       >
+        {/* Inject runtime configuration so client-side services can read deployment environment variables. */}
+        <script
+          id="runtime-env"
+          dangerouslySetInnerHTML={{
+            __html: `window.__ENV__ = Object.assign({}, window.__ENV__ || {}, ${JSON.stringify(runtimeEnv)});`,
+          }}
+        />
         <AppProviders initialLanguage={initialLanguage}>{children}</AppProviders>
       </body>
     </html>
