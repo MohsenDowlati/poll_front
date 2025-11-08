@@ -8,7 +8,7 @@ export default function SheetAuth() {
             <div>
                 <div>
                     <Image 
-                    src={'/images/cards/card-03.jpg'} 
+                    src={'/images/cards/salon2.jpeg'}
                     alt={"sheet description"} 
                     width={472} 
                     height={152}/>

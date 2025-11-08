@@ -5,7 +5,7 @@ export default function UserAuth() {
     <div className="rounded-2xl bg-white px-8 py-10 text-center shadow-theme-lg dark:bg-gray-900">
       <div className="mx-auto mb-6 h-24 w-24 overflow-hidden rounded-full border border-gray-200 dark:border-gray-700">
         <Image
-          src="/images/cards/card-03.jpg"
+          src="/images/cards/salon1.jpg"
           alt="Contact support to confirm access"
           width={96}
           height={96}

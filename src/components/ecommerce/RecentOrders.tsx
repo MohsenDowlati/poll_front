@@ -430,7 +430,7 @@ export default function RecentOrders() {
         return;
       }
 
-      const link = `localhost:3000/poll/${String(identifier)}`;
+      const link = `http://iicc-poll.runflare.run/poll/${String(identifier)}`;
       const fallbackCopy = (value: string) => {
         const textarea = document.createElement('textarea');
         textarea.value = value;
