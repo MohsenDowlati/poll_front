@@ -287,7 +287,6 @@ const FormInModal: React.FC<FormInModalProps> = ({
                               type="text"
                               placeholder={t("sheet.poll.optionLabel", { index: index + 1 })}
                               onChange={(event) => handleOption(event, index)}
-                              value={option}
                             />
                           </div>
 
