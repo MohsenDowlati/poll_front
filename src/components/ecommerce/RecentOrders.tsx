@@ -32,12 +32,18 @@ import { decodeJwtPayload } from '@/utils/jwt';
 import { isSuperAdmin } from '@/utils/roles';
 import { useRouter } from "next/navigation";
 import FullScreenModal from "@/components/example/ModalExample/FullScreenModal";
+import ConfirmDialog from "@/components/ui/modal/ConfirmDialog";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 15;
 const ADMIN_POLL_PAGE_SIZE = 200;
 const DELETABLE_STATUSES = new Set(['finished', 'rejected']);
 const FINISHABLE_STATUSES = new Set(['published']);
+type SheetActionType = 'finish' | 'delete';
+interface PendingSheetAction {
+  type: SheetActionType;
+  sheet: SheetRecord;
+}
 
 const toTitleCase = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -294,6 +300,8 @@ export default function RecentOrders() {
   const [deletingSheetIds, setDeletingSheetIds] = useState<Record<string, boolean>>({});
   const [finishingSheetIds, setFinishingSheetIds] = useState<Record<string, boolean>>({});
   const [canManageSheets, setCanManageSheets] = useState(false);
+  const [pendingSheetAction, setPendingSheetAction] = useState<PendingSheetAction | null>(null);
+  const [isConfirmingSheetAction, setIsConfirmingSheetAction] = useState(false);
   const { t, language } = useLocale();
   const locale = language === 'fa' ? 'fa-IR' : 'en-US';
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
@@ -454,9 +462,8 @@ export default function RecentOrders() {
     [],
   );
 
-  const handleFinishSheet = useCallback(
-    async (event: React.MouseEvent<HTMLButtonElement>, sheet: SheetRecord) => {
-      event.stopPropagation();
+  const finishSheetRecord = useCallback(
+    async (sheet: SheetRecord) => {
       setMutationError(null);
 
       const identifier = resolveSheetIdentifier(sheet);
@@ -503,9 +510,8 @@ export default function RecentOrders() {
     [setSheets, setMutationError, setFinishingSheetIds, t],
   );
 
-  const handleDeleteSheet = useCallback(
-    async (event: React.MouseEvent<HTMLButtonElement>, sheet: SheetRecord) => {
-      event.stopPropagation();
+  const deleteSheetRecord = useCallback(
+    async (sheet: SheetRecord) => {
       setMutationError(null);
 
       const identifier = resolveSheetIdentifier(sheet);
@@ -625,6 +631,84 @@ export default function RecentOrders() {
     },
     [setPage, setSheets, setTotalItems, setMutationError, setDeletingSheetIds, t],
   );
+
+  const handleRequestFinish = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, sheet: SheetRecord) => {
+      event.stopPropagation();
+      setPendingSheetAction({ type: 'finish', sheet });
+    },
+    [setPendingSheetAction],
+  );
+
+  const handleRequestDelete = useCallback(
+    (event: React.MouseEvent<HTMLButtonElement>, sheet: SheetRecord) => {
+      event.stopPropagation();
+      setPendingSheetAction({ type: 'delete', sheet });
+    },
+    [setPendingSheetAction],
+  );
+
+  const handleCancelSheetAction = useCallback(() => {
+    if (isConfirmingSheetAction) {
+      return;
+    }
+    setPendingSheetAction(null);
+  }, [isConfirmingSheetAction, setPendingSheetAction]);
+
+  const handleConfirmSheetAction = useCallback(async () => {
+    if (!pendingSheetAction) {
+      return;
+    }
+
+    setIsConfirmingSheetAction(true);
+    try {
+      if (pendingSheetAction.type === 'finish') {
+        await finishSheetRecord(pendingSheetAction.sheet);
+      } else {
+        await deleteSheetRecord(pendingSheetAction.sheet);
+      }
+      setPendingSheetAction(null);
+    } finally {
+      setIsConfirmingSheetAction(false);
+    }
+  }, [pendingSheetAction, finishSheetRecord, deleteSheetRecord, setPendingSheetAction]);
+
+  const sheetActionDialogProps = useMemo(() => {
+    if (!pendingSheetAction) {
+      return null;
+    }
+
+    const sheetName = resolveName(pendingSheetAction.sheet, t);
+
+    if (pendingSheetAction.type === 'finish') {
+      return {
+        title: t('tables.confirm.finishTitle', {
+          defaultValue: 'Finish this sheet?',
+          name: sheetName,
+        }),
+        description: t('tables.confirm.finishDescription', {
+          defaultValue: `This action will mark "${sheetName}" as finished.`,
+          name: sheetName,
+        }),
+        confirmLabel: t('actions.finish', { defaultValue: 'Finish' }),
+        tone: 'primary' as const,
+      };
+    }
+
+    return {
+      title: t('tables.confirm.deleteTitle', {
+        defaultValue: 'Delete this sheet?',
+        name: sheetName,
+      }),
+      description: t('tables.confirm.deleteDescription', {
+        defaultValue:
+          'Deleting a sheet also deletes all of its polls. This action cannot be undone.',
+        name: sheetName,
+      }),
+      confirmLabel: t('actions.delete', { defaultValue: 'Delete' }),
+      tone: 'danger' as const,
+    };
+  }, [pendingSheetAction, t]);
 
   return (
     <div dir={'ltr'} className="overflow-hidden rounded-2xl border border-gray-200 bg-white px-4 pb-3 pt-4 dark:border-gray-800 dark:bg-white/[0.03] sm:px-6">
@@ -804,7 +888,7 @@ export default function RecentOrders() {
                                 type="button"
                                 className="inline-flex disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label={t('actions.finish')}
-                                onClick={(event) => handleFinishSheet(event, sheet)}
+                                onClick={(event) => handleRequestFinish(event, sheet)}
                                 disabled={isBusy}
                               >
                                 <Badge size="sm" color="success">
@@ -817,7 +901,7 @@ export default function RecentOrders() {
                                 type="button"
                                 className="inline-flex disabled:cursor-not-allowed disabled:opacity-50"
                                 aria-label={t('actions.delete')}
-                                onClick={(event) => handleDeleteSheet(event, sheet)}
+                                onClick={(event) => handleRequestDelete(event, sheet)}
                                 disabled={isBusy}
                               >
                                 <Badge size="sm" color="info">
@@ -881,6 +965,19 @@ export default function RecentOrders() {
           </TableBody>
         </Table>
       </div>
+      {pendingSheetAction && sheetActionDialogProps ? (
+        <ConfirmDialog
+          isOpen
+          title={sheetActionDialogProps.title}
+          description={sheetActionDialogProps.description}
+          confirmLabel={sheetActionDialogProps.confirmLabel}
+          cancelLabel={t('actions.cancel', { defaultValue: 'Cancel' })}
+          tone={sheetActionDialogProps.tone}
+          isProcessing={isConfirmingSheetAction}
+          onConfirm={handleConfirmSheetAction}
+          onCancel={handleCancelSheetAction}
+        />
+      ) : null}
     </div>
   );
 }

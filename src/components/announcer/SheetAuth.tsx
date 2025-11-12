@@ -14,7 +14,7 @@ export default function SheetAuth() {
                     height={152}/>
                 </div>
                 <Label>
-                    The Sheet has been submitted successfully.
+                    با تشکر از نظر شما💐
                 </Label>
             </div>
         </>

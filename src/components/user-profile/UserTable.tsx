@@ -5,6 +5,7 @@ import type { TFunction } from "i18next";
 import Pagination from "@/components/tables/Pagination";
 import { Table, TableBody, TableCell, TableHeader, TableRow } from "@/components/ui/table";
 import Badge from "@/components/ui/badge/Badge";
+import ConfirmDialog from "@/components/ui/modal/ConfirmDialog";
 import {
   listAdminUsers,
   extractAdminUsers,
@@ -19,6 +20,11 @@ import { isSuperAdmin } from "@/utils/roles";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
+type UserActionType = "verify" | "reject" | "delete";
+interface PendingUserAction {
+  type: UserActionType;
+  user: AdminUserRecord;
+}
 
 const ADMIN_TYPE_KEYS: Record<string, string> = {
   super_admin: "userTable.roles.superAdmin",
@@ -165,6 +171,8 @@ export default function UserTable() {
   const [mutationError, setMutationError] = useState<string | null>(null);
   const [mutatingUserIds, setMutatingUserIds] = useState<Record<string, boolean>>({});
   const [canManageUsers, setCanManageUsers] = useState(false);
+  const [pendingUserAction, setPendingUserAction] = useState<PendingUserAction | null>(null);
+  const [isConfirmingUserAction, setIsConfirmingUserAction] = useState(false);
 
   const pageSize = DEFAULT_PAGE_SIZE;
 
@@ -320,17 +328,99 @@ export default function UserTable() {
       [canManageUsers, setUsers, setMutationError, setMutatingUserIds, t],
   );
 
-  const handleDeleteUser = (user: AdminUserRecord) => {
-    void mutateUserStatus(user, false);
-  };
+  const handleDeleteUser = useCallback(
+    (user: AdminUserRecord) => {
+      setPendingUserAction({ type: "delete", user });
+    },
+    [setPendingUserAction],
+  );
 
-  const handleVerifyUser = (user: AdminUserRecord) => {
-    void mutateUserStatus(user, true);
-  };
+  const handleVerifyUser = useCallback(
+    (user: AdminUserRecord) => {
+      setPendingUserAction({ type: "verify", user });
+    },
+    [setPendingUserAction],
+  );
 
-  const handleRejectUser = (user: AdminUserRecord) => {
-    void mutateUserStatus(user, false);
-  };
+  const handleRejectUser = useCallback(
+    (user: AdminUserRecord) => {
+      setPendingUserAction({ type: "reject", user });
+    },
+    [setPendingUserAction],
+  );
+
+  const handleCancelUserAction = useCallback(() => {
+    if (isConfirmingUserAction) {
+      return;
+    }
+    setPendingUserAction(null);
+  }, [isConfirmingUserAction, setPendingUserAction]);
+
+  const handleConfirmUserAction = useCallback(async () => {
+    if (!pendingUserAction) {
+      return;
+    }
+
+    setIsConfirmingUserAction(true);
+    try {
+      const nextStatus = pendingUserAction.type === "verify";
+      await mutateUserStatus(pendingUserAction.user, nextStatus);
+      setPendingUserAction(null);
+    } finally {
+      setIsConfirmingUserAction(false);
+    }
+  }, [pendingUserAction, mutateUserStatus, setPendingUserAction]);
+
+  const userActionDialogProps = useMemo(() => {
+    if (!pendingUserAction) {
+      return null;
+    }
+
+    const name = resolveName(pendingUserAction.user, t);
+
+    if (pendingUserAction.type === "verify") {
+      return {
+        title: t("userTable.confirm.verifyTitle", {
+          defaultValue: "Verify this admin?",
+          name,
+        }),
+        description: t("userTable.confirm.verifyDescription", {
+          defaultValue: `This will grant ${name} admin access.`,
+          name,
+        }),
+        confirmLabel: t("userTable.actions.verify", { defaultValue: "Verify" }),
+        tone: "primary" as const,
+      };
+    }
+
+    if (pendingUserAction.type === "reject") {
+      return {
+        title: t("userTable.confirm.rejectTitle", {
+          defaultValue: "Reject admin request?",
+          name,
+        }),
+        description: t("userTable.confirm.rejectDescription", {
+          defaultValue: `${name} will remain unverified.`,
+          name,
+        }),
+        confirmLabel: t("userTable.actions.reject", { defaultValue: "Reject" }),
+        tone: "danger" as const,
+      };
+    }
+
+    return {
+      title: t("userTable.confirm.removeTitle", {
+        defaultValue: "Remove this admin?",
+        name,
+      }),
+      description: t("userTable.confirm.removeDescription", {
+        defaultValue: "The account will lose admin permissions immediately.",
+        name,
+      }),
+      confirmLabel: t("userTable.actions.remove", { defaultValue: "Remove" }),
+      tone: "danger" as const,
+    };
+  }, [pendingUserAction, t]);
 
   const showEmptyState = !isLoading && !error && users.length === 0;
   const tableRows = useMemo(() => users, [users]);
@@ -571,6 +661,19 @@ export default function UserTable() {
         <div className="mt-4 flex w-full items-center justify-center lg:justify-start">
           <Pagination currentPage={page} totalPages={Math.max(totalPages, 1)} onPageChange={handlePageChange}/>
         </div>
+        {pendingUserAction && userActionDialogProps ? (
+            <ConfirmDialog
+                isOpen
+                title={userActionDialogProps.title}
+                description={userActionDialogProps.description}
+                confirmLabel={userActionDialogProps.confirmLabel}
+                cancelLabel={t("actions.cancel", { defaultValue: "Cancel" })}
+                tone={userActionDialogProps.tone}
+                isProcessing={isConfirmingUserAction}
+                onConfirm={handleConfirmUserAction}
+                onCancel={handleCancelUserAction}
+            />
+        ) : null}
       </div>
   );
 }

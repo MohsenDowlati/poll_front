@@ -1,5 +1,6 @@
-import React from "react";
+import React, { useCallback, useState } from "react";
 import { useLocale } from "@/hooks/useLocale";
+import ConfirmDialog from "@/components/ui/modal/ConfirmDialog";
 
 interface ComponentCardProps {
   title: string;
@@ -21,6 +22,7 @@ const PollCard: React.FC<ComponentCardProps> = ({
   onEdit,
 }) => {
   const { t } = useLocale();
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const normalizedType = type.toLowerCase();
   const isTextType = normalizedType === "text" || normalizedType === "opinion";
   const translateCategory = (rawValue: unknown) => {
@@ -38,6 +40,17 @@ const PollCard: React.FC<ComponentCardProps> = ({
     category.length > 0
       ? category.map((item) => translateCategory(item)).join(", ")
       : t("sheet.poll.uncategorized");
+
+  const handleConfirmDelete = useCallback(() => {
+    if (onDelete) {
+      onDelete();
+    }
+    setIsDeleteDialogOpen(false);
+  }, [onDelete]);
+
+  const handleCancelDelete = useCallback(() => {
+    setIsDeleteDialogOpen(false);
+  }, []);
 
   return (
     <div className={`rounded-2xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-white/[0.03] ${className}`}>
@@ -72,7 +85,7 @@ const PollCard: React.FC<ComponentCardProps> = ({
             {onDelete ? (
                 <button
                     type="button"
-                    onClick={onDelete}
+                    onClick={() => setIsDeleteDialogOpen(true)}
                     className="flex h-8 w-8 items-center justify-center rounded-full text-gray-400 transition-colors hover:text-error-500 focus:outline-none focus-visible:ring-2 focus-visible:ring-error-500"
                     aria-label={t("sheet.poll.actions.delete")}
                 >
@@ -111,6 +124,22 @@ const PollCard: React.FC<ComponentCardProps> = ({
           </div>
         ) : null}
       </div>
+      {onDelete ? (
+        <ConfirmDialog
+          isOpen={isDeleteDialogOpen}
+          title={t("sheet.poll.confirmDeleteTitle", {
+            defaultValue: "Delete this poll?",
+          })}
+          description={t("sheet.poll.confirmDeleteDescription", {
+            defaultValue: `Removing "${title}" will erase its options from this sheet.`,
+          })}
+          confirmLabel={t("sheet.poll.actions.delete", { defaultValue: "Delete" })}
+          cancelLabel={t("actions.cancel", { defaultValue: "Cancel" })}
+          tone="danger"
+          onConfirm={handleConfirmDelete}
+          onCancel={handleCancelDelete}
+        />
+      ) : null}
     </div>
   );
 };

@@ -21,10 +21,10 @@ export default function Text({ id, title, onChangeOpinion }: opinionType) {
             value={opinion}
             onChange={(e) => { const v = e.target.value; setOpinion(v); onChangeOpinion?.(v); }}
             className="w-full min-h-[300px] bg-[#f5f5f5]/70 rounded-[15px] p-3 outline-none resize-none text-left font-normal text-base m-0 md:text-lg lg:w-[90%]"
-            placeholder="Type your opinion..."
+            placeholder="نظر خود را بنویسید..."
             rows={8}
             wrap="soft"
-            dir="auto"
+            dir="rtl"
         />
             </div>
         </div>
