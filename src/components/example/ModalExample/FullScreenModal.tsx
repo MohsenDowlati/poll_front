@@ -320,7 +320,7 @@ export default function FullScreenModal({
 
       if (disposition) {
         const utfMatch = disposition.match(/filename\*=UTF-8''([^;]+)/i);
-        const quotedMatch = disposition.match(/filename=\"?([^\";]+)\"?/i);
+        const quotedMatch = disposition.match(/filename="?([^";]+)"?/i);
         const rawFileName = (utfMatch?.[1] ?? quotedMatch?.[1])?.trim();
         if (rawFileName) {
           try {
