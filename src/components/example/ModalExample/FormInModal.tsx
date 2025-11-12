@@ -66,7 +66,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
       { value: "روابط عمومی", text: "روابط عمومی" },
       { value: "دبیر همایش", text: "دبیر همایش" },
     ],
-    [t],
+    [],
   );
 
   const defaultOptions = useMemo(
