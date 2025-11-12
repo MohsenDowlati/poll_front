@@ -338,7 +338,7 @@ export default function PollMaker({id}: {id: string}) {
                 )}
                 <div className="sr-only">Items: {polls.length} Total pages: {totalPages}</div>
                 <h1 className="text-3xl font-bold text-center mb-8 text-blue-950">
-                    {sheetInfo.title ?? 'سامانه نظرسنجی مرکز همایش‌های صدا و سیما'}
+                    {sheetInfo.title ?? 'سامانه نظرسنجی مرکز همایش‌های بین‌المللی صدا و سیما'}
                 </h1>
                 <article className="bg-[#6bbf6e] rounded-[21px] shadow-lg mt-[24px] py-[44px] w-full lg:w-[90%]">
                     {polls.length > 0 ? (
