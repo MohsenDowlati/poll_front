@@ -1,5 +1,4 @@
 "use client";
-import Checkbox from "@/components/form/input/Checkbox";
 import Input from "@/components/form/input/InputField";
 import Label from "@/components/form/Label";
 import { EyeCloseIcon, EyeIcon } from "@/icons";
@@ -11,17 +10,19 @@ import Button from "@/components/ui/button/Button";
 import { normalizePhone } from "@/utils/normalizePhone";
 import { useRouter } from "next/navigation";
 import { extractToken, setAuthTokenCookie } from "@/utils/authToken";
-import {useLocale} from "@/hooks/useLocale";
+import { useLocale } from "@/hooks/useLocale";
+import useAlert from "@/hooks/useAlert";
 
 export default function SignUpForm() {
   const [showPassword, setShowPassword] = useState(false);
-  const [isChecked, setIsChecked] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const [name, setName] = useState("");
   const [organization, setOrganization] = useState("");
   const [phone, setPhone] = useState("");
   const [password, setPassword] = useState("");
 
   const router = useRouter();
+  const { showAlert } = useAlert();
 
   const {direction, t} = useLocale();
 
@@ -48,13 +49,28 @@ export default function SignUpForm() {
         } else {
           console.warn("Signup succeeded but no token was found in the response payload");
         }
+        showAlert({
+          variant: "success",
+          title: "Account created",
+          message: "You have successfully signed up.",
+        });
         router.push("/home");
       } else {
         console.log("error", status);
         // TODO: surface error to the user
+        showAlert({
+          variant: "error",
+          title: "Sign up failed",
+          message: "Please verify your details and try again.",
+        });
       }
     } catch (error) {
       console.error("Sign up failed", error);
+      showAlert({
+        variant: "error",
+        title: "Network issue",
+        message: "Unable to reach the server. Please try again shortly.",
+      });
     }
   }
 
@@ -86,9 +102,14 @@ export default function SignUpForm() {
 
   const handleSignUp = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
     if (phone === "" || password === "" || name === "" || organization === "" ) {
       console.log("fill up");
-      // TODO: alert user about missing fields
+      showAlert({
+        variant: "warning",
+        title: "Missing information",
+        message: "Please fill out all required fields.",
+      });
       return;
     }
 
@@ -99,7 +120,12 @@ export default function SignUpForm() {
       password
     };
 
-    await sign_up(payload);
+    setIsLoading(true);
+    try {
+      await sign_up(payload);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
 
@@ -179,17 +205,9 @@ export default function SignUpForm() {
                     </span>
                   </div>
                 </div>
-                {/* <!-- Checkbox --> */}
-                <div>
-                  <Checkbox
-                    checked={isChecked}
-                    onChange={(checked: boolean) => setIsChecked(checked)}
-                    label={t('auth.signup.agreeTerms')}
-                  />
-                </div>
                 {/* <!-- Button --> */}
                 <div>
-                  <Button className="w-full" size="sm" disabled={!isChecked} type="submit">
+                  <Button className="w-full" size="sm" disabled={isLoading} type="submit">
                     {t('auth.signup.title')}
                   </Button>
                 </div>

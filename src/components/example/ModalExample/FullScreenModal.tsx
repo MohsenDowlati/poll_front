@@ -345,6 +345,45 @@ export default function FullScreenModal({
     }
   }, [buildFileName, closeFullscreenModal, hasSheetId, normalizedSheetId, t]);
 
+  const captureSnapshot = useCallback(
+    async (
+      element: HTMLElement,
+      {
+        backgroundColor,
+        pixelRatio,
+      }: {
+        backgroundColor: string;
+        pixelRatio: number;
+      },
+    ): Promise<string> => {
+      try {
+        const htmlToImage = await import("html-to-image");
+        return await htmlToImage.toJpeg(element, {
+          quality: 0.95,
+          pixelRatio,
+          cacheBust: true,
+          skipFonts: true,
+          backgroundColor,
+        });
+      } catch (primaryError) {
+        console.warn("html-to-image failed, attempting html2canvas fallback", primaryError);
+        const html2canvasModule = await import("html2canvas");
+        const html2canvas = html2canvasModule.default ?? html2canvasModule;
+        const canvas = await html2canvas(element, {
+          backgroundColor,
+          useCORS: true,
+          allowTaint: true,
+          logging: false,
+          scale: pixelRatio,
+          windowWidth: element.scrollWidth || undefined,
+          windowHeight: element.scrollHeight || undefined,
+        });
+        return canvas.toDataURL("image/jpeg", 0.95);
+      }
+    },
+    [],
+  );
+
   const handleSnapshotExport = useCallback(
     async (format: "pdf" | "jpg") => {
       if (!hasSheetId) {
@@ -366,7 +405,6 @@ export default function FullScreenModal({
 
       try {
         const element = modalContentRef.current;
-        const htmlToImage = await import("html-to-image");
         const deviceRatio = window.devicePixelRatio || 1;
         const pixelRatio = Math.min(3, deviceRatio * 1.5);
         const computed = window.getComputedStyle(element);
@@ -375,13 +413,7 @@ export default function FullScreenModal({
             ? computed.getPropertyValue("background-color")
             : "#ffffff";
 
-        const dataUrl = await htmlToImage.toJpeg(element, {
-          quality: 0.95,
-          pixelRatio,
-          cacheBust: true,
-          skipFonts: true,
-          backgroundColor,
-        });
+        const dataUrl = await captureSnapshot(element, { backgroundColor, pixelRatio });
 
         if (format === "jpg") {
           triggerDownload(dataUrl, buildFileName("jpg"));
@@ -407,7 +439,7 @@ export default function FullScreenModal({
         setIsExporting(false);
       }
     },
-    [buildFileName, hasSheetId, modalContentRef, t],
+    [buildFileName, captureSnapshot, hasSheetId, modalContentRef, t],
   );
 
   const handleSave = useCallback(

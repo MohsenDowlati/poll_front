@@ -16,6 +16,8 @@ export default function SignInForm() {
   const [password, setPassword] = useState("");
   const [phoneNumber, setPhoneNumber] = useState("");
 
+  const [isLoading, setIsLoading] = useState(false);
+
   const router = useRouter();
 
   const {t} = useLocale();
@@ -68,6 +70,7 @@ export default function SignInForm() {
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
+    setIsLoading(true);
     e.preventDefault();
     if (phoneNumber === "" || password === "") {
       console.log("fill up");
@@ -81,6 +84,7 @@ export default function SignInForm() {
     };
 
     await log_in(payload);
+    setIsLoading(false)
   };
 
   return (
@@ -127,7 +131,7 @@ export default function SignInForm() {
                   </div>
                 </div>
                 <div>
-                  <Button className="w-full" size="sm" type="submit">
+                  <Button className="w-full" size="sm" type="submit" disabled={isLoading}>
                     {t('auth.login.title')}
                   </Button>
                 </div>

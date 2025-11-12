@@ -4,6 +4,7 @@ import React from 'react';
 import LocalizationProvider from '@/providers/LocalizationProvider';
 import { ThemeProvider } from '@/context/ThemeContext';
 import { SidebarProvider } from '@/context/SidebarContext';
+import { AlertProvider } from '@/context/AlertContext';
 import type { SupportedLanguage } from '@/i18n/settings';
 
 interface AppProvidersProps {
@@ -14,7 +15,9 @@ interface AppProvidersProps {
 const AppProviders: React.FC<AppProvidersProps> = ({ children, initialLanguage }) => (
   <LocalizationProvider initialLanguage={initialLanguage}>
     <ThemeProvider>
-      <SidebarProvider>{children}</SidebarProvider>
+      <SidebarProvider>
+        <AlertProvider>{children}</AlertProvider>
+      </SidebarProvider>
     </ThemeProvider>
   </LocalizationProvider>
 );
