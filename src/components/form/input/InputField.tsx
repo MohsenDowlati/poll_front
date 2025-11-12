@@ -57,7 +57,6 @@ const Input: FC<InputProps> = ({
         name={name}
         placeholder={placeholder}
         value={value}
-        defaultValue={value === undefined ? defaultValue : undefined}
         onChange={onChange}
         min={min}
         max={max}
