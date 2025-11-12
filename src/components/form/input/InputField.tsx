@@ -23,7 +23,6 @@ const Input: FC<InputProps> = ({
   id,
   name,
   placeholder,
-  defaultValue,
   value,
   onChange,
   className = "",
