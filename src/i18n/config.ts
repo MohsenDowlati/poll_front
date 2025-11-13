@@ -163,6 +163,7 @@ const resources = {
       'auth.signup.alreadyHaveAccount': 'Already have an account?',
       'auth.signup.signInLink': 'Sign In',
       'auth.layout': 'Create polls, collect insights, and understand what matters most.',
+      'tables.headers.link': 'Link'
     },
   },
   fa: {
@@ -319,7 +320,8 @@ const resources = {
       'auth.inputs.passwordPlaceholder': 'رمز عبور خود را وارد کنید',
       'auth.signup.alreadyHaveAccount': 'قبلاً ثبت‌نام کرده‌اید؟',
       'auth.signup.signInLink': 'ورود',
-      'auth.layout': 'نظرسنجی کنید، دیدگاه‌ها را بررسی کنید و آنچه مهم است را بیابید'
+      'auth.layout': 'نظرسنجی کنید، دیدگاه‌ها را بررسی کنید و آنچه مهم است را بیابید',
+      'tables.headers.link': 'لینک'
     },
   },
 };

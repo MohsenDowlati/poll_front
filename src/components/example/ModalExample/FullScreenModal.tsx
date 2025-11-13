@@ -49,7 +49,8 @@ export default function FullScreenModal({
   const [totalPages, setTotalPages] = useState(1);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [canExportResults, setCanExportResults] = useState(false);
+  const [canExportSnapshots, setCanExportSnapshots] = useState(false);
+  const [canExportCsv, setCanExportCsv] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
 
@@ -157,12 +158,14 @@ export default function FullScreenModal({
   useEffect(() => {
     const token = getAuthTokenFromCookie();
     if (!token) {
-      setCanExportResults(false);
+      setCanExportSnapshots(false);
+      setCanExportCsv(false);
       return;
     }
 
+    setCanExportSnapshots(true);
     const payload = decodeJwtPayload(token);
-    setCanExportResults(isSuperAdmin(payload));
+    setCanExportCsv(isSuperAdmin(payload));
   }, []);
 
   const categoryLabelMap = useMemo(() => {
@@ -445,13 +448,20 @@ export default function FullScreenModal({
   const handleSave = useCallback(
     async (format: "pdf" | "csv" | "jpg") => {
       if (format === "csv") {
+        if (!canExportCsv) {
+          return;
+        }
         await handleCsvExport();
+        return;
+      }
+
+      if (!canExportSnapshots) {
         return;
       }
 
       await handleSnapshotExport(format);
     },
-    [handleCsvExport, handleSnapshotExport],
+    [canExportCsv, canExportSnapshots, handleCsvExport, handleSnapshotExport],
   );
 
   const headerTitle = sheetTitle ?? (hasSheetId ? normalizedSheetId : "");
@@ -574,7 +584,7 @@ export default function FullScreenModal({
                 <Button size="sm" variant="outline" onClick={closeFullscreenModal}>
                   {t("actions.close")}
                 </Button>
-                {canExportResults && (
+                {canExportSnapshots && (
                   <>
                     <Button
                       size="sm"
@@ -592,15 +602,17 @@ export default function FullScreenModal({
                     >
                       {t("actions.saveJpg")}
                     </Button>
-                    <Button
-                      size="sm"
-                      onClick={() => void handleSave("csv")}
-                      disabled={isExporting}
-                      aria-busy={isExporting}
-                    >
-                      {t("actions.saveCsv")}
-                    </Button>
                   </>
+                )}
+                {canExportCsv && (
+                  <Button
+                    size="sm"
+                    onClick={() => void handleSave("csv")}
+                    disabled={isExporting}
+                    aria-busy={isExporting}
+                  >
+                    {t("actions.saveCsv")}
+                  </Button>
                 )}
               </div>
               {exportError && (

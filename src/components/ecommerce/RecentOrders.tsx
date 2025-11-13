@@ -9,6 +9,7 @@ import {
   TableHeader,
   TableRow,
 } from '../ui/table';
+import Button from '../ui/button/Button';
 import Badge from '../ui/badge/Badge';
 import Label from '@/components/form/Label';
 import { useLocale } from '@/hooks/useLocale';
@@ -424,6 +425,33 @@ export default function RecentOrders() {
 
   const showEmptyState = !isLoading && sheets.length === 0 && !error;
 
+  const copySheetLink = useCallback((identifier: string | number | undefined | null) => {
+    if (identifier === undefined || identifier === null) {
+      return;
+    }
+
+    const link = `http://iicc-poll.runflare.run/poll/${String(identifier)}`;
+    const fallbackCopy = (value: string) => {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'absolute';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    };
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(link).catch(() => {
+        fallbackCopy(link);
+      });
+    } else {
+      fallbackCopy(link);
+    }
+  }, []);
+
   const handleRowClick = useCallback(
     (event: React.MouseEvent<HTMLTableRowElement>, identifier: string | number | undefined) => {
       if (identifier === undefined || identifier === null) {
@@ -438,28 +466,9 @@ export default function RecentOrders() {
         return;
       }
 
-      const link = `http://iicc-poll.runflare.run/poll/${String(identifier)}`;
-      const fallbackCopy = (value: string) => {
-        const textarea = document.createElement('textarea');
-        textarea.value = value;
-        textarea.setAttribute('readonly', '');
-        textarea.style.position = 'absolute';
-        textarea.style.left = '-9999px';
-        document.body.appendChild(textarea);
-        textarea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textarea);
-      };
-
-      if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-        navigator.clipboard.writeText(link).catch(() => {
-          fallbackCopy(link);
-        });
-      } else {
-        fallbackCopy(link);
-      }
+      copySheetLink(identifier);
     },
-    [],
+    [copySheetLink],
   );
 
   const finishSheetRecord = useCallback(
@@ -808,6 +817,12 @@ export default function RecentOrders() {
               >
                 {t('tables.headers.analyze')}
               </TableCell>
+              <TableCell
+                  isHeader
+                  className="py-3 font-medium text-gray-500 text-start text-theme-xs dark:text-gray-400"
+              >
+                {t('tables.headers.link')}
+              </TableCell>
             </TableRow>
           </TableHeader>
 
@@ -818,6 +833,7 @@ export default function RecentOrders() {
               const isPending = normalizedStatus === 'pending';
               const isDeletable = DELETABLE_STATUSES.has(normalizedStatus);
               const isFinishable = FINISHABLE_STATUSES.has(normalizedStatus);
+              const isPublished = normalizedStatus === 'published';
               const sheetIdentifier = resolveSheetIdentifier(sheet);
               const sheetIdKey =
                 sheetIdentifier !== undefined && sheetIdentifier !== null
@@ -915,8 +931,32 @@ export default function RecentOrders() {
                     </TableCell>
                   )}
                   <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
-                    <FullScreenModal sheetId={sheetIdentifier} sheetTitle={resolvedName} />
+                    <div className="flex items-center gap-2">
+                      <FullScreenModal sheetId={sheetIdentifier} sheetTitle={resolvedName} />
+                    </div>
                   </TableCell>
+                  <TableCell className="py-3 text-gray-500 text-theme-sm dark:text-gray-400">
+
+                          <Button
+                              size="sm"
+                              variant="outline"
+                              type="button"
+                              disabled={
+                                  sheetIdentifier === undefined ||
+                                  sheetIdentifier === null ||
+                                  isBusy || !isPublished
+                              }
+                              onClick={(event) => {
+                                event.preventDefault();
+                                event.stopPropagation();
+                                copySheetLink(sheetIdentifier);
+                              }}
+                          >
+                            <CopyIcon/>
+                          </Button>
+
+                  </TableCell>
+
                 </TableRow>
               );
             })}
@@ -981,6 +1021,29 @@ export default function RecentOrders() {
     </div>
   );
 }
+
+const CopyIcon = () => (
+  <svg width="30px" height="30px" viewBox="0 0 1024 1024" className="icon" version="1.1"
+       xmlns="http://www.w3.org/2000/svg">
+    <path d="M589.3 260.9v30H371.4v-30H268.9v513h117.2v-304l109.7-99.1h202.1V260.9z" fill="#E1F0FF"/>
+    <path d="M516.1 371.1l-122.9 99.8v346.8h370.4V371.1z" fill="#E1F0FF"/>
+    <path d="M752.7 370.8h21.8v435.8h-21.8z" fill="#446EB1"/>
+    <path d="M495.8 370.8h277.3v21.8H495.8z" fill="#446EB1"/>
+    <path d="M495.8 370.8h21.8v124.3h-21.8z" fill="#446EB1"/>
+    <path d="M397.7 488.7l-15.4-15.4 113.5-102.5 15.4 15.4z" fill="#446EB1"/>
+    <path d="M382.3 473.3h135.3v21.8H382.3z" fill="#446EB1"/>
+    <path d="M382.3 479.7h21.8v348.6h-21.8zM404.1 806.6h370.4v21.8H404.1z" fill="#446EB1"/>
+    <path d="M447.7 545.1h261.5v21.8H447.7zM447.7 610.5h261.5v21.8H447.7zM447.7 675.8h261.5v21.8H447.7z"
+          fill="#6D9EE8"/>
+    <path d="M251.6 763h130.7v21.8H251.6z" fill="#446EB1"/>
+    <path d="M251.6 240.1h21.8v544.7h-21.8zM687.3 240.1h21.8v130.7h-21.8zM273.4 240.1h108.9v21.8H273.4z"
+          fill="#446EB1"/>
+    <path
+        d="M578.4 240.1h130.7v21.8H578.4zM360.5 196.5h21.8v108.9h-21.8zM382.3 283.7h196.1v21.8H382.3zM534.8 196.5h65.4v21.8h-65.4z"
+        fill="#446EB1"/>
+    <path d="M360.5 196.5h65.4v21.8h-65.4zM404.1 174.7h152.5v21.8H404.1zM578.4 196.5h21.8v108.9h-21.8z" fill="#446EB1"/>
+  </svg>
+)
 
 
 
