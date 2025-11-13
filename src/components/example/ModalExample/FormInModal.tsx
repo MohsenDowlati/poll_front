@@ -284,7 +284,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
                 {!isTextType && type !== "" ? (
                   <div className="w-full">
                       {options.map((option, index) => (
-                        <div key={option + index} className="grid grid-cols-7 my-2 w-full">
+                        <div key={`option-${index}`} className="grid grid-cols-7 my-2 w-full">
                           <div className="col-span-6">
                             <Input
                               type="text"
