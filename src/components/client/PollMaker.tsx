@@ -326,11 +326,6 @@ export default function PollMaker({id}: {id: string}) {
     return (
         <section className="min-h-screen bg-gray-100 p-[1px] mb-6 w-full lg:p-8">
             <div className="mx-auto px-[1px] flex justify-center flex-col items-center lg:px-4 w-full">
-                {error && (
-                    <div className="mb-4 w-full rounded-md bg-red-50 p-3 text-sm text-red-700" role="alert">
-                        {error}
-                    </div>
-                )}
                 {submitMessage && (
                     <div className="mb-4 w-full rounded-md bg-green-50 p-3 text-sm text-green-700" role="status">
                         {submitMessage}
@@ -414,7 +409,14 @@ export default function PollMaker({id}: {id: string}) {
                         </div>
                     ) : (
                         !isLoading && (
-                            <p className="px-6 text-center text-white">No polls available at the moment.</p>
+                            <div className="p-4 md:p-6 mb-4 md:mb-6 flex flex-col items-center">
+                                <svg className="w-12 h-12 md:w-54 md:h-54 text-[#85bbf1]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 20H5a2 2 0 01-2-2V6a2 2 0 012-2h10a2 2 0 012 2v1m2 13a2 2 0 01-2-2V7m2 13a2 2 0 002-2V9a2 2 0 00-2-2h-2m-4-3H9M7 16h6M7 8h6v4H7V8z" />
+                                </svg>
+                                <span dir="rtl" className="mt-2">
+                    نظرسنجی مورد نظر فعال نیست.
+                  </span>
+                            </div>
                         )
                     )}
 

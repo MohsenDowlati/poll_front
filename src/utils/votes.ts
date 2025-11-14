@@ -86,10 +86,6 @@ export function buildSlideVotes(optionsLength: number, orderIndices?: number[]):
   return votes;
 }
 
-export function buildOpinionVotes(value: string): string[] {
-  // For opinion polls we return the free-text response as an array of strings
-  return [value];
-}
 
 
 export function inferPollType(poll: PollRecord): PollType | undefined {
