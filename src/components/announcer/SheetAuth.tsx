@@ -13,7 +13,7 @@ export default function SheetAuth() {
                     width={472} 
                     height={152}/>
                 </div>
-                <Label>
+                <Label className="mt-2 text-bolder text-lg">
                     با تشکر از نظر شما💐
                 </Label>
             </div>

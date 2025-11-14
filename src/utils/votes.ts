@@ -1,4 +1,4 @@
-import { PollRecord } from '@/services/poll/poll';
+import {PollRecord} from '@/services/poll/poll';
 
 export type PollType = 'single_choice' | 'multi_choice' | 'slide' | 'opinion';
 
@@ -69,13 +69,12 @@ export function buildSlideVotes(optionsLength: number, orderIndices?: number[]):
 
   for (let rank = 0; rank < order.length; rank++) {
     const originalIndex = order[rank];
-    if (typeof originalIndex !== 'number' || !Number.isFinite(originalIndex)) {
+    if (!Number.isFinite(originalIndex)) {
       continue;
     }
 
     const clampedIndex = Math.max(0, Math.min(votes.length - 1, Math.floor(originalIndex)));
-    const score = Math.max(maxScore - rank, 1);
-    votes[clampedIndex] = score;
+    votes[clampedIndex] = Math.max(maxScore - rank, 1);
   }
 
   for (let idx = 0; idx < votes.length; idx++) {
@@ -92,23 +91,6 @@ export function buildOpinionVotes(value: string): string[] {
   return [value];
 }
 
-export function buildVotesByType(
-  selection: VoteSelection,
-  optionsLength: number,
-): number[] | string[] {
-  switch (selection.type) {
-    case 'single_choice':
-      return buildSingleChoiceVotes(selection.selectedIndex, optionsLength);
-    case 'multi_choice':
-      return buildMultiChoiceVotes(selection.selectedIndices, optionsLength);
-    case 'slide':
-      return buildSlideVotes(optionsLength);
-    case 'opinion':
-      return buildOpinionVotes(selection.value);
-    default:
-      return createZeroArray(optionsLength);
-  }
-}
 
 export function inferPollType(poll: PollRecord): PollType | undefined {
   const t = (poll?.poll_type || '').toString().trim();

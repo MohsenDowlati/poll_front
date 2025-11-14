@@ -9,7 +9,7 @@ import PhoneInput from '@/components/form/group-input/PhoneInput';
 import {extractPollPaginationMeta, extractPolls, fetchPolls, PollRecord, submitPollVotes} from '@/services/poll/poll';
 import Text from '@/components/client/Text';
 import Single from '@/components/client/Single';
-import {buildMultiChoiceVotes, buildOpinionVotes, buildSingleChoiceVotes, inferPollType} from '@/utils/votes';
+import {buildMultiChoiceVotes, buildSingleChoiceVotes, inferPollType} from '@/utils/votes';
 
 interface SheetInfo {
     id?: string;
@@ -18,7 +18,7 @@ interface SheetInfo {
 }
 
 type PollAnswer = {
-    votes: Array<number | string>;
+    votes?: Array<number | string>;
     inputs?: string[];
 };
 
@@ -72,7 +72,7 @@ const Poll = ({data, onChange}: {data: PollRecord; onChange: (payload: { id: str
                     id={idStr}
                     title={title}
                     onChangeOpinion={(value) => {
-                        onChange({ id: idStr, votes: buildOpinionVotes(value), inputs: [value] });
+                        onChange({ id: idStr, votes: [], inputs: [value] });
                     }}
                 />
             );
@@ -308,7 +308,7 @@ export default function PollMaker({id}: {id: string}) {
                 entries.map(([pollId, answer]) =>
                     submitPollVotes({
                         id: pollId,
-                        votes: answer.votes,
+                        votes: answer.votes ?? [],
                         inputs: answer.inputs ?? [],
                     }),
                 ),
@@ -408,7 +408,7 @@ export default function PollMaker({id}: {id: string}) {
                                     disabled={!canSubmit}
                                     type="button"
                                 >
-                                    {isSubmitting ? 'Submitting…' : 'Submit'}
+                                    {isSubmitting ? 'در حال ثبت نظر...' : 'ثبت نظر'}
                                 </Button>
                             </div>
                         </div>
