@@ -12,6 +12,7 @@ interface SelectProps {
   className?: string;
   defaultValue?: string;
   value?: string;
+  allowEmptySelection?: boolean;
 }
 
 const Select: React.FC<SelectProps> = ({
@@ -21,6 +22,7 @@ const Select: React.FC<SelectProps> = ({
   className = "",
   defaultValue = "",
   value,
+  allowEmptySelection = false,
 }) => {
   const [selectedValue, setSelectedValue] = useState<string>(defaultValue ?? "");
 
@@ -52,7 +54,7 @@ const Select: React.FC<SelectProps> = ({
     >
       <option
         value=""
-        disabled
+        disabled={!allowEmptySelection}
         className="text-gray-700 dark:bg-gray-900 dark:text-gray-400"
       >
         {placeholder}

@@ -72,6 +72,11 @@ export interface CreateSheetPollPayload {
 export interface SheetQueryParams extends Record<string, unknown> {
   page?: number;
   page_size?: number;
+  owners?: string[];
+  status?: string[];
+  venue?: string;
+  date_from?: string;
+  date_to?: string;
 }
 
 export interface SheetPollRecord extends Record<string, unknown> {

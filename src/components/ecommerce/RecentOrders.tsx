@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { TFunction } from 'i18next';
 import {
   Table,
@@ -12,6 +12,9 @@ import {
 import Button from '../ui/button/Button';
 import Badge from '../ui/badge/Badge';
 import Label from '@/components/form/Label';
+import Input from '@/components/form/input/InputField';
+import MultiSelect from '@/components/form/MultiSelect';
+import VenueSelect, { defaultVenues as sheetVenueOptions } from '@/components/sheet/VenueSelect';
 import { useLocale } from '@/hooks/useLocale';
 import {
   deleteSheet,
@@ -20,6 +23,7 @@ import {
   fetchSheets,
   finishSheet,
   type SheetPollRecord,
+  type SheetQueryParams,
   type SheetRecord,
 } from '@/services/sheet/sheet';
 import {
@@ -38,13 +42,71 @@ import ConfirmDialog from "@/components/ui/modal/ConfirmDialog";
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 15;
 const ADMIN_POLL_PAGE_SIZE = 200;
+const OWNER_DISCOVERY_PAGE_SIZE = 200;
+const OWNER_DISCOVERY_MAX_PAGES = 25;
 const DELETABLE_STATUSES = new Set(['finished', 'rejected']);
 const FINISHABLE_STATUSES = new Set(['published']);
+const STATUS_FILTER_VALUES = [
+  'pending',
+  'approved',
+  'published',
+  'finished',
+  'rejected',
+  'active',
+  'verified',
+  'deleted',
+  'inactive',
+  'closed',
+] as const;
 type SheetActionType = 'finish' | 'delete';
 interface PendingSheetAction {
   type: SheetActionType;
   sheet: SheetRecord;
 }
+
+interface SheetFiltersState {
+  owners: string[];
+  statuses: string[];
+  venue: string;
+  dateFrom: string;
+  dateTo: string;
+}
+
+type FiltersUpdater =
+  | Partial<SheetFiltersState>
+  | ((prev: SheetFiltersState) => SheetFiltersState);
+
+const FILTER_DEFAULTS: SheetFiltersState = {
+  owners: [],
+  statuses: [],
+  venue: '',
+  dateFrom: '',
+  dateTo: '',
+};
+
+const areStringArraysEqual = (left: string[], right: string[]): boolean => {
+  if (left.length !== right.length) {
+    return false;
+  }
+
+  for (let index = 0; index < left.length; index += 1) {
+    if (left[index] !== right[index]) {
+      return false;
+    }
+  }
+
+  return true;
+};
+
+const areFilterStatesEqual = (left: SheetFiltersState, right: SheetFiltersState): boolean => {
+  return (
+    left.venue === right.venue &&
+    left.dateFrom === right.dateFrom &&
+    left.dateTo === right.dateTo &&
+    areStringArraysEqual(left.owners, right.owners) &&
+    areStringArraysEqual(left.statuses, right.statuses)
+  );
+};
 
 const toTitleCase = (value: string): string =>
   value.replace(/_/g, ' ').replace(/\b\w/g, (char) => char.toUpperCase());
@@ -303,12 +365,212 @@ export default function RecentOrders() {
   const [canManageSheets, setCanManageSheets] = useState(false);
   const [pendingSheetAction, setPendingSheetAction] = useState<PendingSheetAction | null>(null);
   const [isConfirmingSheetAction, setIsConfirmingSheetAction] = useState(false);
+  const [filters, setFilters] = useState<SheetFiltersState>(() => ({ ...FILTER_DEFAULTS }));
+  const [filterError, setFilterError] = useState<string | null>(null);
+  const [ownerOptions, setOwnerOptions] = useState<Array<{ value: string; text: string }>>([]);
+  const [ownerError, setOwnerError] = useState<string | null>(null);
+  const [isLoadingOwners, setIsLoadingOwners] = useState(false);
   const { t, language } = useLocale();
   const locale = language === 'fa' ? 'fa-IR' : 'en-US';
   const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale]);
+  const collator = useMemo(() => new Intl.Collator(locale, { sensitivity: 'base' }), [locale]);
   const formatNumber = useCallback((value: number) => numberFormatter.format(value), [numberFormatter]);
+  const statusFilterOptions = useMemo(
+    () =>
+      STATUS_FILTER_VALUES.map((statusKey) => ({
+        value: statusKey,
+        text: t(`status.${statusKey}`, { defaultValue: toTitleCase(statusKey) }),
+      })),
+    [t],
+  );
+  const hasActiveFilters = useMemo(
+    () => !areFilterStatesEqual(filters, FILTER_DEFAULTS),
+    [filters],
+  );
+  const normalizeMultiSelectValues = useCallback(
+    (values: string[]) => {
+      const sanitized = values
+        .map((value) => (typeof value === 'string' ? value.trim() : ''))
+        .filter((value) => value.length > 0);
+      const unique = Array.from(new Set(sanitized));
+      return unique.sort((left, right) => collator.compare(left, right));
+    },
+    [collator],
+  );
+  const updateFilters = useCallback(
+    (updater: FiltersUpdater) => {
+      setFilters((previousFilters) => {
+        const nextFilters =
+          typeof updater === 'function'
+            ? (updater as (prev: SheetFiltersState) => SheetFiltersState)(previousFilters)
+            : { ...previousFilters, ...updater };
+
+        if (areFilterStatesEqual(previousFilters, nextFilters)) {
+          return previousFilters;
+        }
+
+        setPage((currentPage) => (currentPage === DEFAULT_PAGE ? currentPage : DEFAULT_PAGE));
+
+        return nextFilters;
+      });
+    },
+    [],
+  );
 
   const router = useRouter();
+  const isMountedRef = useRef(true);
+
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+    };
+  }, []);
+
+
+  const handlePageChange = (nextPage: number) => {
+    const targetPage = Math.max(nextPage, 1);
+    if (targetPage === page) {
+      return;
+    }
+    setPage(Math.min(targetPage, Math.max(totalPages, 1)));
+  };
+
+  const paginationLabel = useMemo(() => {
+    const startIndex = sheets.length > 0 ? (page - 1) * pageSize + 1 : 0;
+    const endIndex = sheets.length > 0 ? startIndex + sheets.length - 1 : 0;
+
+    if (totalItems !== undefined) {
+      const cappedEnd = endIndex ? Math.min(endIndex, totalItems) : 0;
+      const effectiveStart = startIndex || (totalItems > 0 ? 1 : 0);
+      return t('tables.pagination.range', {
+        start: formatNumber(effectiveStart),
+        end: formatNumber(cappedEnd),
+        total: formatNumber(totalItems),
+      });
+    }
+
+    return t('tables.pagination.rangeNoTotal', {
+      start: formatNumber(startIndex),
+      end: formatNumber(endIndex),
+    });
+  }, [formatNumber, page, pageSize, sheets.length, t, totalItems]);
+
+  const showEmptyState = !isLoading && sheets.length === 0 && !error && !filterError;
+
+  const copySheetLink = useCallback((identifier: string | number | undefined | null) => {
+    if (identifier === undefined || identifier === null) {
+      return;
+    }
+
+    const link = `http://iicc-poll.runflare.run/poll/${String(identifier)}`;
+    const fallbackCopy = (value: string) => {
+      const textarea = document.createElement('textarea');
+      textarea.value = value;
+      textarea.setAttribute('readonly', '');
+      textarea.style.position = 'absolute';
+      textarea.style.left = '-9999px';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
+    };
+
+    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+      navigator.clipboard.writeText(link).catch(() => {
+        fallbackCopy(link);
+      });
+    } else {
+      fallbackCopy(link);
+    }
+  }, []);
+  const handleVenueChange = (value: string) => {
+    updateFilters({ venue: value });
+  };
+  const handleStatusChange = (values: string[]) => {
+    updateFilters({ statuses: normalizeMultiSelectValues(values) });
+  };
+  const handleOwnerChange = (values: string[]) => {
+    updateFilters({ owners: normalizeMultiSelectValues(values) });
+  };
+  const handleDateChange =
+    (key: 'dateFrom' | 'dateTo') => (event: React.ChangeEvent<HTMLInputElement>) => {
+      updateFilters({ [key]: event.target.value });
+    };
+  const handleResetFilters = () => {
+    updateFilters(() => ({ ...FILTER_DEFAULTS }));
+  };
+  const loadOwnerOptions = useCallback(async () => {
+    if (!canManageSheets || !isMountedRef.current) {
+      return;
+    }
+
+    setOwnerError(null);
+    setIsLoadingOwners(true);
+
+    try {
+      const collectedOwners = new Set<string>();
+      let currentPage = 1;
+      let keepFetching = true;
+
+      while (keepFetching && currentPage <= OWNER_DISCOVERY_MAX_PAGES) {
+        const { status, data } = await fetchSheets({
+          page: currentPage,
+          page_size: OWNER_DISCOVERY_PAGE_SIZE,
+        });
+
+        if (status < 200 || status >= 300) {
+          throw new Error(`Unexpected status ${status} while loading owners.`);
+        }
+
+        const fetchedSheets = extractSheetList(data);
+        for (const sheet of fetchedSheets) {
+          const ownerName = resolveOwner(sheet);
+          if (ownerName && ownerName !== '-') {
+            collectedOwners.add(ownerName);
+          }
+        }
+
+        const meta = extractSheetPaginationMeta(data, OWNER_DISCOVERY_PAGE_SIZE);
+        const totalPages = meta.totalPages && meta.totalPages > 0 ? meta.totalPages : undefined;
+
+        if (totalPages !== undefined) {
+          keepFetching = currentPage < totalPages;
+        } else if (fetchedSheets.length < OWNER_DISCOVERY_PAGE_SIZE) {
+          keepFetching = false;
+        } else {
+          currentPage += 1;
+          continue;
+        }
+
+        if (keepFetching) {
+          currentPage += 1;
+        }
+      }
+
+      if (!isMountedRef.current) {
+        return;
+      }
+
+      const sortedOwners = Array.from(collectedOwners).sort((left, right) =>
+        collator.compare(left, right),
+      );
+      setOwnerOptions(sortedOwners.map((value) => ({ value, text: value })));
+    } catch (ownersError) {
+      console.error('Failed to load owners', ownersError);
+      if (isMountedRef.current) {
+        setOwnerOptions([]);
+        setOwnerError(
+          t('tables.filters.ownerError', {
+            defaultValue: 'Unable to load owners. Please try again.',
+          }),
+        );
+      }
+    } finally {
+      if (isMountedRef.current) {
+        setIsLoadingOwners(false);
+      }
+    }
+  }, [canManageSheets, collator, t]);
 
   useEffect(() => {
     const token = getAuthTokenFromCookie();
@@ -320,18 +582,76 @@ export default function RecentOrders() {
   }, [router]);
 
   useEffect(() => {
+    if (!canManageSheets) {
+      setOwnerOptions([]);
+      setOwnerError(null);
+      setIsLoadingOwners(false);
+      updateFilters((previous) => {
+        if (previous.owners.length === 0) {
+          return previous;
+        }
+        return { ...previous, owners: [] };
+      });
+      return;
+    }
+
+    void loadOwnerOptions();
+  }, [canManageSheets, loadOwnerOptions, updateFilters]);
+
+  useEffect(() => {
     setMutationError(null);
     let isMounted = true;
+
+    const hasInvalidDateRange =
+      filters.dateFrom &&
+      filters.dateTo &&
+      new Date(filters.dateFrom).getTime() > new Date(filters.dateTo).getTime();
+
+    if (hasInvalidDateRange) {
+      setFilterError(
+        t('tables.filters.invalidDateRange', {
+          defaultValue: 'The end date must be on or after the start date.',
+        }),
+      );
+      setIsLoading(false);
+      return () => {
+        isMounted = false;
+      };
+    }
+
+    setFilterError(null);
 
     const loadSheets = async () => {
       setIsLoading(true);
       setError(null);
 
       try {
-        const { status, data } = await fetchSheets({
+        const queryParams: SheetQueryParams = {
           page,
           page_size: pageSize,
-        });
+        };
+
+        if (filters.dateFrom) {
+          queryParams.date_from = filters.dateFrom;
+        }
+
+        if (filters.dateTo) {
+          queryParams.date_to = filters.dateTo;
+        }
+
+        if (filters.venue.trim()) {
+          queryParams.venue = filters.venue.trim();
+        }
+
+        if (filters.statuses.length > 0) {
+          queryParams.status = filters.statuses;
+        }
+
+        if (canManageSheets && filters.owners.length > 0) {
+          queryParams.owners = filters.owners;
+        }
+
+        const { status, data } = await fetchSheets(queryParams);
 
         if (!isMounted) {
           return;
@@ -393,83 +713,7 @@ export default function RecentOrders() {
     return () => {
       isMounted = false;
     };
-  }, [page, pageSize, t]);
-
-  const handlePageChange = (nextPage: number) => {
-    const targetPage = Math.max(nextPage, 1);
-    if (targetPage === page) {
-      return;
-    }
-    setPage(Math.min(targetPage, Math.max(totalPages, 1)));
-  };
-
-  const paginationLabel = useMemo(() => {
-    const startIndex = sheets.length > 0 ? (page - 1) * pageSize + 1 : 0;
-    const endIndex = sheets.length > 0 ? startIndex + sheets.length - 1 : 0;
-
-    if (totalItems !== undefined) {
-      const cappedEnd = endIndex ? Math.min(endIndex, totalItems) : 0;
-      const effectiveStart = startIndex || (totalItems > 0 ? 1 : 0);
-      return t('tables.pagination.range', {
-        start: formatNumber(effectiveStart),
-        end: formatNumber(cappedEnd),
-        total: formatNumber(totalItems),
-      });
-    }
-
-    return t('tables.pagination.rangeNoTotal', {
-      start: formatNumber(startIndex),
-      end: formatNumber(endIndex),
-    });
-  }, [formatNumber, page, pageSize, sheets.length, t, totalItems]);
-
-  const showEmptyState = !isLoading && sheets.length === 0 && !error;
-
-  const copySheetLink = useCallback((identifier: string | number | undefined | null) => {
-    if (identifier === undefined || identifier === null) {
-      return;
-    }
-
-    const link = `http://iicc-poll.runflare.run/poll/${String(identifier)}`;
-    const fallbackCopy = (value: string) => {
-      const textarea = document.createElement('textarea');
-      textarea.value = value;
-      textarea.setAttribute('readonly', '');
-      textarea.style.position = 'absolute';
-      textarea.style.left = '-9999px';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-    };
-
-    if (navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-      navigator.clipboard.writeText(link).catch(() => {
-        fallbackCopy(link);
-      });
-    } else {
-      fallbackCopy(link);
-    }
-  }, []);
-
-  const handleRowClick = useCallback(
-    (event: React.MouseEvent<HTMLTableRowElement>, identifier: string | number | undefined) => {
-      if (identifier === undefined || identifier === null) {
-        return;
-      }
-
-      const target = event.target as HTMLElement | null;
-      if (
-        target &&
-        target.closest('button, a, [role="button"], input, textarea, select')
-      ) {
-        return;
-      }
-
-      copySheetLink(identifier);
-    },
-    [copySheetLink],
-  );
+  }, [page, pageSize, filters, t, canManageSheets]);
 
   const finishSheetRecord = useCallback(
     async (sheet: SheetRecord) => {
@@ -775,6 +1019,100 @@ export default function RecentOrders() {
           </button>
         </div>
       </div>
+      <div className="mb-5 space-y-4">
+        <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
+          <div>
+            <Label htmlFor="sheet-date-from">
+              {t('tables.filters.dateFrom', { defaultValue: 'Date from' })}
+            </Label>
+            <Input
+              id="sheet-date-from"
+              type="date"
+              value={filters.dateFrom}
+              onChange={handleDateChange('dateFrom')}
+              max={filters.dateTo || undefined}
+            />
+          </div>
+          <div>
+            <Label htmlFor="sheet-date-to">
+              {t('tables.filters.dateTo', { defaultValue: 'Date to' })}
+            </Label>
+            <Input
+              id="sheet-date-to"
+              type="date"
+              value={filters.dateTo}
+              onChange={handleDateChange('dateTo')}
+              min={filters.dateFrom || undefined}
+            />
+          </div>
+          <div>
+            <Label>
+              {t('tables.filters.venue', { defaultValue: 'Venue' })}
+            </Label>
+            <VenueSelect
+              value={filters.venue}
+              onChange={handleVenueChange}
+              options={sheetVenueOptions}
+              placeholder={t('tables.filters.venuePlaceholder', { defaultValue: 'All venues' })}
+              allowEmptySelection
+            />
+          </div>
+          <div>
+            <MultiSelect
+              label={t('tables.filters.status', { defaultValue: 'Status' })}
+              options={statusFilterOptions}
+              value={filters.statuses}
+              onChange={handleStatusChange}
+              placeholder={t('tables.filters.statusPlaceholder', { defaultValue: 'All statuses' })}
+            />
+          </div>
+        </div>
+        {filterError ? (
+          <p className="text-xs text-error-500">{filterError}</p>
+        ) : null}
+        {canManageSheets ? (
+          <div>
+            <MultiSelect
+              label={t('tables.filters.owners', { defaultValue: 'Owner' })}
+              options={ownerOptions}
+              value={filters.owners}
+              onChange={handleOwnerChange}
+              placeholder={t('tables.filters.ownerPlaceholder', { defaultValue: 'All owners' })}
+              disabled={isLoadingOwners || ownerOptions.length === 0}
+            />
+            {isLoadingOwners ? (
+              <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                {t('tables.filters.loadingOwners', { defaultValue: 'Loading owners...' })}
+              </p>
+            ) : null}
+            {ownerError ? (
+              <div className="mt-1 flex flex-wrap items-center gap-3">
+                <span className="text-xs text-error-500">{ownerError}</span>
+                <button
+                  type="button"
+                  onClick={() => {
+                    void loadOwnerOptions();
+                  }}
+                  className="text-xs font-medium text-brand-500 transition hover:text-brand-600"
+                >
+                  {t('tables.filters.ownerRetry', { defaultValue: 'Retry' })}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            onClick={handleResetFilters}
+            disabled={!hasActiveFilters}
+          >
+            {t('tables.filters.reset', { defaultValue: 'Clear filters' })}
+          </Button>
+        </div>
+      </div>
       <div className="max-w-full overflow-x-auto">
         <Table>
           <TableHeader className="border-gray-100 dark:border-gray-800 border-y">
@@ -839,15 +1177,14 @@ export default function RecentOrders() {
                 sheetIdentifier !== undefined && sheetIdentifier !== null
                   ? String(sheetIdentifier)
                   : undefined;
-              const isDeleting = sheetIdKey ? deletingSheetIds[sheetIdKey] === true : false;
-              const isFinishing = sheetIdKey ? finishingSheetIds[sheetIdKey] === true : false;
+              const isDeleting = sheetIdKey ? deletingSheetIds[sheetIdKey] : false;
+              const isFinishing = sheetIdKey ? finishingSheetIds[sheetIdKey] : false;
               const isBusy = isDeleting || isFinishing;
               const resolvedName = resolveName(sheet, t);
 
               return (
                 <TableRow
                   key={sheet.id ?? resolvedName}
-                  onClick={(event) => handleRowClick(event, sheetIdentifier)}
                   className="cursor-pointer transition-colors hover:bg-gray-50 dark:hover:bg-white/[0.04]"
                 >
                   <TableCell className="py-3">
