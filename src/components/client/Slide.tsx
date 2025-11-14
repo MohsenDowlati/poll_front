@@ -143,6 +143,7 @@ function DraggableRow({ item, onRate }: { item: ChoiceItem; onRate: (id: string,
             <div
                 className="flex items-center gap-[0.5px] pr-1 md:pr-2 md:gap-[2px]"
                 onMouseLeave={() => setHoveredValue(null)}
+                dir="ltr"
             >
                 {Array.from({ length: STAR_COUNT }, (_, index) => {
                     const starValue = index + 1;

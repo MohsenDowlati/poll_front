@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { useLocale } from "@/hooks/useLocale";
 import SingleChart from "@/components/charts/circular/SingleChart";
 import BarChartOne from "@/components/charts/bar/BarChartOne";
@@ -40,6 +40,15 @@ const PollResult: React.FC<ComponentCardProps> = ({
         return t(`sheet.poll.categories.${normalized}`, { defaultValue: value });
     };
     const categoriesLabel = category.length > 0 ? category.map((item) => translateCategory(item)).join(", ") : undefined;
+    const chartVotes = useMemo(() => {
+        if (!isSlideType || votes.length === 0) {
+            return votes;
+        }
+
+        const divisor = votes.length || 1;
+        return votes.map((value) => value / divisor);
+    }, [isSlideType, votes]);
+    const shouldRenderBarChart = isMultiType || isSlideType;
 
 
 
@@ -77,7 +86,7 @@ const PollResult: React.FC<ComponentCardProps> = ({
                     {options.length > 0 && (
                         <>
                             {isSingleType && <SingleChart option={options} votes={votes}/>}
-                            {(isMultiType || isSlideType) && <BarChartOne option={options} votes={votes} />}
+                            {shouldRenderBarChart && <BarChartOne option={options} votes={chartVotes} />}
                         </>
                     )}
                 </div>

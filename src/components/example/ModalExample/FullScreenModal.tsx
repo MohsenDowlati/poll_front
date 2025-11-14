@@ -26,6 +26,268 @@ interface FullScreenModalProps {
 
 const DEFAULT_PAGE_SIZE = 10;
 
+const containsUnsupportedColorFunction = (value: string | null | undefined) => {
+  if (!value) {
+    return false;
+  }
+  return value.toLowerCase().includes("oklch(");
+};
+
+const OKLCH_REGEX = /oklch\(([^)]+)\)/gi;
+
+interface OklchComponents {
+  lightness: number;
+  chroma: number;
+  hue: number;
+  alpha: number;
+}
+
+const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+
+const parsePercentage = (raw: string): number | null => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  if (trimmed.endsWith("%")) {
+    const numeric = parseFloat(trimmed.slice(0, -1));
+    if (Number.isNaN(numeric)) {
+      return null;
+    }
+    return numeric / 100;
+  }
+
+  const numeric = parseFloat(trimmed);
+  if (Number.isNaN(numeric)) {
+    return null;
+  }
+
+  return numeric > 1 ? numeric / 100 : numeric;
+};
+
+const parseAngle = (raw: string): number | null => {
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return null;
+  }
+
+  const match = trimmed.match(/^(-?\d+(\.\d+)?)(deg|rad|grad|turn)?$/i);
+  if (!match) {
+    return null;
+  }
+
+  const value = parseFloat(match[1]);
+  if (Number.isNaN(value)) {
+    return null;
+  }
+
+  const unit = (match[3] ?? "").toLowerCase();
+  let degrees: number;
+  switch (unit) {
+    case "rad":
+      degrees = (value * 180) / Math.PI;
+      break;
+    case "grad":
+      degrees = value * 0.9;
+      break;
+    case "turn":
+      degrees = value * 360;
+      break;
+    case "deg":
+    case "":
+      degrees = value;
+      break;
+    default:
+      return null;
+  }
+
+  const normalized = ((degrees % 360) + 360) % 360;
+  return normalized;
+};
+
+const parseAlpha = (raw: string | undefined): number => {
+  if (!raw) {
+    return 1;
+  }
+
+  const trimmed = raw.trim();
+  if (!trimmed) {
+    return 1;
+  }
+
+  if (trimmed.endsWith("%")) {
+    const numeric = parseFloat(trimmed.slice(0, -1));
+    if (Number.isNaN(numeric)) {
+      return 1;
+    }
+    return clamp(numeric / 100, 0, 1);
+  }
+
+  const numeric = parseFloat(trimmed);
+  if (Number.isNaN(numeric)) {
+    return 1;
+  }
+  return clamp(numeric, 0, 1);
+};
+
+const parseOklchComponents = (raw: string): OklchComponents | null => {
+  const [base, alphaPart] = raw.split("/");
+  const components = base
+    .split(/\s+/)
+    .map((value) => value.trim())
+    .filter(Boolean);
+
+  if (components.length < 3) {
+    return null;
+  }
+
+  const lightness = parsePercentage(components[0]);
+  const chroma = parseFloat(components[1]);
+  const hue = parseAngle(components[2]);
+
+  if (
+    lightness === null ||
+    Number.isNaN(chroma) ||
+    chroma < 0 ||
+    hue === null
+  ) {
+    return null;
+  }
+
+  return {
+    lightness: clamp(lightness, 0, 1),
+    chroma,
+    hue,
+    alpha: parseAlpha(alphaPart),
+  };
+};
+
+const linearToSrgb = (value: number) => {
+  if (value <= 0.0031308) {
+    return 12.92 * value;
+  }
+  return 1.055 * Math.pow(value, 1 / 2.4) - 0.055;
+};
+
+const formatAlpha = (value: number) => {
+  if (value >= 1) {
+    return "1";
+  }
+  if (value <= 0) {
+    return "0";
+  }
+  if (value >= 0.99) {
+    return "0.99";
+  }
+  return parseFloat(value.toFixed(3)).toString();
+};
+
+const convertOklchToken = (token: string): string | null => {
+  const start = token.indexOf("(");
+  const end = token.lastIndexOf(")");
+
+  if (start === -1 || end === -1) {
+    return null;
+  }
+
+  const content = token.slice(start + 1, end);
+  const parsed = parseOklchComponents(content);
+  if (!parsed) {
+    return null;
+  }
+
+  const hueInRadians = (parsed.hue * Math.PI) / 180;
+  const aComponent = parsed.chroma * Math.cos(hueInRadians);
+  const bComponent = parsed.chroma * Math.sin(hueInRadians);
+
+  const lComponent = parsed.lightness + 0.3963377774 * aComponent + 0.2158037573 * bComponent;
+  const mComponent = parsed.lightness - 0.1055613458 * aComponent - 0.0638541728 * bComponent;
+  const sComponent = parsed.lightness - 0.0894841775 * aComponent - 1.2914855480 * bComponent;
+
+  const l = lComponent * lComponent * lComponent;
+  const m = mComponent * mComponent * mComponent;
+  const s = sComponent * sComponent * sComponent;
+
+  const r = clamp(linearToSrgb(
+    4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s,
+  ), 0, 1);
+  const g = clamp(linearToSrgb(
+    -1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s,
+  ), 0, 1);
+  const b = clamp(linearToSrgb(
+    -0.0041960863 * l - 0.7034186147 * m + 1.7076147010 * s,
+  ), 0, 1);
+
+  const r255 = Math.round(r * 255);
+  const g255 = Math.round(g * 255);
+  const b255 = Math.round(b * 255);
+
+  if (parsed.alpha < 0.999) {
+    return `rgba(${r255}, ${g255}, ${b255}, ${formatAlpha(parsed.alpha)})`;
+  }
+
+  return `rgb(${r255}, ${g255}, ${b255})`;
+};
+
+const convertColorValue = (value: string): string | null => {
+  let changed = false;
+  const sanitized = value.replace(OKLCH_REGEX, (match) => {
+    const converted = convertOklchToken(match);
+    if (!converted) {
+      return match;
+    }
+    changed = true;
+    return converted;
+  });
+
+  return changed ? sanitized : null;
+};
+
+const sanitizeColorsForHtml2Canvas = (doc: Document) => {
+  const view = doc.defaultView;
+  const root = doc.documentElement;
+
+  if (!view || !root) {
+    return;
+  }
+
+  const processElement = (element: Element | null) => {
+    if (
+      !element ||
+      !("style" in element) ||
+      typeof (element as HTMLElement).style?.setProperty !== "function"
+    ) {
+      return;
+    }
+
+    const computed = view.getComputedStyle(element);
+
+    for (let i = 0; i < computed.length; i += 1) {
+      const propertyName = computed.item(i);
+      if (!propertyName) {
+        continue;
+      }
+
+      const value = computed.getPropertyValue(propertyName);
+      if (!containsUnsupportedColorFunction(value)) {
+        continue;
+      }
+
+      const fallback = convertColorValue(value);
+      if (fallback) {
+        (element as HTMLElement).style.setProperty(propertyName, fallback, "important");
+      }
+    }
+  };
+
+  processElement(root);
+  const walker = doc.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+  while (walker.nextNode()) {
+    processElement(walker.currentNode as Element);
+  }
+};
+
 export default function FullScreenModal({
   sheetId,
   sheetTitle,
@@ -236,11 +498,6 @@ export default function FullScreenModal({
     return map;
   }, [extractCategories, polls]);
 
-  const totalParticipants = useMemo(
-    () => polls.reduce((acc, poll) => acc + poll.participants, 0),
-    [polls],
-  );
-
   const canGoPrev = page > 1;
   const canGoNext = page < totalPages;
 
@@ -380,6 +637,13 @@ export default function FullScreenModal({
           scale: pixelRatio,
           windowWidth: element.scrollWidth || undefined,
           windowHeight: element.scrollHeight || undefined,
+          onclone: (clonedDocument) => {
+            try {
+              sanitizeColorsForHtml2Canvas(clonedDocument);
+            } catch (cloneError) {
+              console.warn("Failed to sanitize colors for html2canvas clone", cloneError);
+            }
+          },
         });
         return canvas.toDataURL("image/jpeg", 0.95);
       }
@@ -518,11 +782,6 @@ export default function FullScreenModal({
                   <p className="text-sm text-gray-500 dark:text-gray-400">{t("analyze.empty")}</p>
                 )}
 
-                {polls.length > 0 && (
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    {t("analyze.totalParticipants", { count: totalParticipants })}
-                  </p>
-                )}
 
                 {uniqueCategories.map((category) => {
                   const categoryPolls = pollsByCategory.get(category) ?? [];

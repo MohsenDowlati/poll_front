@@ -155,7 +155,7 @@ export default function PollMaker({id}: {id: string}) {
             setIsLoading(true);
             setError(null);
             setSubmitMessage(null);
-
+            console.log(error)
             try {
                 const { status, data } = await fetchPolls({
                     id,
