@@ -1,22 +1,17 @@
 "use client";
 
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { useModal } from "@/hooks/useModal";
+import React, {useCallback, useEffect, useMemo, useRef, useState} from "react";
+import {useModal} from "@/hooks/useModal";
 
 import Button from "../../ui/button/Button";
-import { Modal } from "../../ui/modal";
+import {Modal} from "../../ui/modal";
 import PollResult from "@/components/sheet/PollResult";
-import {
-  AdminPollSummary,
-  extractAdminPolls,
-  extractPollPaginationMeta,
-  fetchAdminPolls,
-} from "@/services/poll/poll";
-import { exportSheet } from "@/services/sheet/sheet";
-import { useLocale } from "@/hooks/useLocale";
-import { getAuthTokenFromCookie } from "@/utils/authToken";
-import { decodeJwtPayload } from "@/utils/jwt";
-import { isSuperAdmin } from "@/utils/roles";
+import {AdminPollSummary, extractAdminPolls, extractPollPaginationMeta, fetchAdminPolls,} from "@/services/poll/poll";
+import {exportSheet} from "@/services/sheet/sheet";
+import {useLocale} from "@/hooks/useLocale";
+import {getAuthTokenFromCookie} from "@/utils/authToken";
+import {decodeJwtPayload} from "@/utils/jwt";
+import {isSuperAdmin} from "@/utils/roles";
 
 interface FullScreenModalProps {
   sheetId?: string | number;
@@ -102,8 +97,7 @@ const parseAngle = (raw: string): number | null => {
       return null;
   }
 
-  const normalized = ((degrees % 360) + 360) % 360;
-  return normalized;
+  return ((degrees % 360) + 360) % 360;
 };
 
 const parseAlpha = (raw: string | undefined): number => {
@@ -315,6 +309,7 @@ export default function FullScreenModal({
   const [canExportCsv, setCanExportCsv] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   const [exportError, setExportError] = useState<string | null>(null);
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
   const extractCategories = useCallback((raw: unknown): string[] => {
     if (Array.isArray(raw)) {
@@ -400,6 +395,7 @@ export default function FullScreenModal({
     setIsLoading(false);
     setExportError(null);
     setIsExporting(false);
+    setSelectedCategory(null);
   }, [normalizedSheetId]);
 
   useEffect(() => {
@@ -411,6 +407,7 @@ export default function FullScreenModal({
       setPage(1);
       setExportError(null);
       setIsExporting(false);
+      setSelectedCategory(null);
       return;
     }
 
@@ -497,6 +494,19 @@ export default function FullScreenModal({
 
     return map;
   }, [extractCategories, polls]);
+
+  const categoriesToRender = useMemo(() => {
+    if (selectedCategory && uniqueCategories.includes(selectedCategory)) {
+      return [selectedCategory];
+    }
+    return uniqueCategories;
+  }, [selectedCategory, uniqueCategories]);
+
+  useEffect(() => {
+    if (selectedCategory && !uniqueCategories.includes(selectedCategory)) {
+      setSelectedCategory(null);
+    }
+  }, [selectedCategory, uniqueCategories]);
 
   const canGoPrev = page > 1;
   const canGoNext = page < totalPages;
@@ -757,14 +767,23 @@ export default function FullScreenModal({
 
             {uniqueCategories.length > 0 && (
               <div className="flex flex-wrap gap-3 mb-6 text-sm text-gray-600 dark:text-gray-300">
-                {uniqueCategories.map((category) => (
-                  <span
-                    key={category}
-                    className="inline-flex items-center rounded-full border border-gray-200 px-3 py-1 text-xs uppercase tracking-wide dark:border-gray-700"
-                  >
-                    {translateCategory(category)}
-                  </span>
-                ))}
+                {uniqueCategories.map((category) => {
+                  const isSelected = selectedCategory === category;
+                  return (
+                    <button
+                      key={category}
+                      type="button"
+                      onClick={() => setSelectedCategory((current) => (current === category ? null : category))}
+                      className={`inline-flex items-center rounded-full border px-3 py-1 text-xs uppercase tracking-wide transition-colors ${
+                        isSelected
+                          ? "border-gray-900 bg-gray-900 text-white dark:border-gray-100 dark:bg-gray-100 dark:text-gray-900"
+                          : "border-gray-200 text-gray-700 hover:border-gray-400 hover:text-gray-900 dark:border-gray-700 dark:text-gray-200 dark:hover:border-gray-500 dark:hover:text-white"
+                      }`}
+                    >
+                      {translateCategory(category)}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
@@ -783,7 +802,7 @@ export default function FullScreenModal({
                 )}
 
 
-                {uniqueCategories.map((category) => {
+                {categoriesToRender.map((category) => {
                   const categoryPolls = pollsByCategory.get(category) ?? [];
                   if (categoryPolls.length === 0) {
                     return null;
