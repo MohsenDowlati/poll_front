@@ -823,6 +823,7 @@ export default function FullScreenModal({
                             title={poll.title}
                             options={poll.options}
                             votes={poll.votes}
+                            responses={poll.responses}
                             category={extractCategories(poll.category)}
                             type={poll.type}
                             participants={poll.participants}

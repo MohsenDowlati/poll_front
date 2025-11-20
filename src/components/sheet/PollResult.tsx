@@ -8,6 +8,7 @@ interface ComponentCardProps {
     options: string[];
     votes: number[];
     category: string[];
+    responses?: string[];
     className?: string;
     type: string;
     participants: number;
@@ -20,7 +21,8 @@ const PollResult: React.FC<ComponentCardProps> = ({
                                                     className = "",
                                                     type,
     participants,
-    votes
+    votes,
+    responses = [],
                                                 }) => {
     const { t } = useLocale();
     const normalizedType = type.toLowerCase();
@@ -70,26 +72,51 @@ const PollResult: React.FC<ComponentCardProps> = ({
             </div>
             <div>
                 <div className="p-4 border-t border-gray-100 dark:border-gray-800 sm:p-6">
-                    {!isTextType && options.length > 0 ? (
+                    {isTextType ? (
+                        responses.length > 0 ? (
+                            <div className="space-y-3">
+                                <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+                                    {t("sheet.poll.responses.title")}
+                                </p>
+                                <ol className="space-y-2">
+                                    {responses.map((response, index) => (
+                                        <li
+                                            key={`${title}-response-${index}`}
+                                            className="flex flex-row gap-3 rounded-md border border-gray-100 bg-gray-50 p-3 text-sm text-gray-800 dark:border-gray-700 dark:bg-white/5 dark:text-gray-100"
+                                        >
+                                            <span className="text-xs font-semibold uppercase tracking-wide text-gray-400 dark:text-gray-500">
+                                                #{index + 1}
+                                            </span>
+                                            <span className="leading-snug">{response}</span>
+                                        </li>
+                                    ))}
+                                </ol>
+                            </div>
+                        ) : (
+                            <p className="text-sm text-gray-500 dark:text-gray-400">
+                                {t("sheet.poll.responses.empty")}
+                            </p>
+                        )
+                    ) : options.length > 0 ? (
                         <div className="space-y-6">
                             {options.map((option, index) => (
                                 <div key={index} className="flex flex-row gap-2 items-center">
                                     <div className="h-3 w-3 rounded-full bg-blue-950" />
                                     <p className="text-gray-700 dark:text-gray-400 text-sm lg:text-lg">{option}</p>
-                                    <p>{t("sheet.poll.voteCount", { count: votes[index] ?? 0 })}</p>
+                                    {
+                                        isSlideType ? <p>{votes[index]/participants}  /5</p> :<p>{t("sheet.poll.voteCount", { count: votes[index] ?? 0 })}</p>
+                                    }
                                 </div>
                             ))}
                         </div>
                     ) : null}
                 </div>
-                <div>
-                    {options.length > 0 && (
-                        <>
-                            {isSingleType && <SingleChart option={options} votes={votes}/>}
-                            {shouldRenderBarChart && <BarChartOne option={options} votes={chartVotes} />}
-                        </>
-                    )}
-                </div>
+                {!isTextType && options.length > 0 && (
+                    <div>
+                        {isSingleType && <SingleChart option={options} votes={votes}/>}
+                        {shouldRenderBarChart && <BarChartOne option={options} votes={chartVotes} />}
+                    </div>
+                )}
             </div>
         </div>
     );

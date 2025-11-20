@@ -151,6 +151,8 @@ const resources = {
       'sheet.poll.voteCount_one': '{{count}} vote',
       'sheet.poll.voteCount_other': '{{count}} votes',
       'sheet.poll.chart.votes': 'Votes',
+      'sheet.poll.responses.title': 'Responses',
+      'sheet.poll.responses.empty': 'No responses yet.',
       'sheet.poll.option.removeAria': 'Remove option {{index}}',
       'analyze.loading': 'Loading poll results...',
       'analyze.empty': 'No poll results available for this sheet yet.',
@@ -176,7 +178,7 @@ const resources = {
       'auth.signup.alreadyHaveAccount': 'Already have an account?',
       'auth.signup.signInLink': 'Sign In',
       'auth.layout': 'Create polls, collect insights, and understand what matters most.',
-      'tables.headers.link': 'Link'
+      'tables.headers.link': 'Link',
     },
   },
   fa: {
@@ -322,6 +324,8 @@ const resources = {
       'sheet.poll.voteCount_one': '{{count}} رأی',
       'sheet.poll.voteCount_other': '{{count}} رأی',
       'sheet.poll.chart.votes': 'آرا',
+      'sheet.poll.responses.title': 'پاسخ‌ها',
+      'sheet.poll.responses.empty': 'هنوز پاسخی ثبت نشده است.',
       'sheet.poll.option.removeAria': 'حذف گزینه {{index}}',
       'analyze.loading': 'در حال بارگذاری نتایج نظرسنجی...',
       'analyze.empty': 'هنوز نتیجه‌ای برای این فرم ثبت نشده است.',
