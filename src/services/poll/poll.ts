@@ -61,6 +61,8 @@ export interface SubmitPollVotesPayload {
   id: string | number;
   votes: Array<string | number>;
   inputs?: string[];
+  user_name?: string;
+  user_phone?: string;
 }
 
 export interface SubmitPollVotesResponse extends Record<string, unknown> {

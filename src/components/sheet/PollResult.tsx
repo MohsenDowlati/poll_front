@@ -47,7 +47,7 @@ const PollResult: React.FC<ComponentCardProps> = ({
             return votes;
         }
 
-        const divisor = votes.length || 1;
+        const divisor = participants || 1;
         return votes.map((value) => value / divisor);
     }, [isSlideType, votes]);
     const shouldRenderBarChart = isMultiType || isSlideType;

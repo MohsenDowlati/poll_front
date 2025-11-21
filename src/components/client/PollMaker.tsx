@@ -6,6 +6,7 @@ import Multi from '@/components/client/Multi';
 import Slide from '@/components/client/Slide';
 import Button from '@/components/ui/button/Button';
 import PhoneInput from '@/components/form/group-input/PhoneInput';
+import Input from '@/components/form/input/InputField';
 import {extractPollPaginationMeta, extractPolls, fetchPolls, PollRecord, submitPollVotes} from '@/services/poll/poll';
 import Text from '@/components/client/Text';
 import Single from '@/components/client/Single';
@@ -102,23 +103,36 @@ export default function PollMaker({id}: {id: string}) {
     const [error, setError] = useState<string | null>(null);
     const [currentVotes, setCurrentVotes] = useState<Record<string, PollAnswer>>({});
     const [sheetInfo, setSheetInfo] = useState<SheetInfo>({});
+    const [userName, setUserName] = useState('');
     const [phoneNumber, setPhoneNumber] = useState('');
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitMessage, setSubmitMessage] = useState<string | null>(null);
 
     const isPhoneRequired = Boolean(sheetInfo.isPhoneRequired);
+    const sanitizedPhoneNumber = useMemo(
+        () => phoneNumber.replace(/[^\d+]/g, '').trim(),
+        [phoneNumber],
+    );
+    const trimmedUserName = useMemo(() => userName.trim(), [userName]);
+    const hasPhoneInput = sanitizedPhoneNumber.length > 0;
 
     const isPhoneValid = useMemo(() => {
-        if (!isPhoneRequired) {
+        if (isPhoneRequired) {
+            return hasPhoneInput && /^\+?\d{10,15}$/.test(sanitizedPhoneNumber);
+        }
+        if (!hasPhoneInput) {
             return true;
         }
-        const sanitized = phoneNumber.replace(/[^\d+]/g, '');
-        if (sanitized.length === 0) {
-            return false;
-        }
 
-        return /^\+?\d{10,15}$/.test(sanitized);
-    }, [isPhoneRequired, phoneNumber]);
+        return /^\+?\d{10,15}$/.test(sanitizedPhoneNumber);
+    }, [hasPhoneInput, isPhoneRequired, sanitizedPhoneNumber]);
+
+    const isNameValid = useMemo(() => {
+        if (isPhoneRequired) {
+            return trimmedUserName.length > 0;
+        }
+        return true;
+    }, [isPhoneRequired, trimmedUserName]);
 
     const hasAnyVote = useMemo(() => {
         return Object.values(currentVotes).some(({ votes, inputs }) => {
@@ -139,7 +153,7 @@ export default function PollMaker({id}: {id: string}) {
         });
     }, [currentVotes]);
 
-    const canSubmit = !isSubmitting && !isLoading && polls.length > 0 && hasAnyVote && (!isPhoneRequired || isPhoneValid);
+    const canSubmit = !isSubmitting && !isLoading && polls.length > 0 && hasAnyVote && isPhoneValid && isNameValid;
 
     const progressPercentage = useMemo(() => {
         if (totalPages <= 0) {
@@ -291,8 +305,10 @@ export default function PollMaker({id}: {id: string}) {
 
     const handleSubmit = async () => {
         if (!canSubmit) {
-            if (isPhoneRequired && !isPhoneValid) {
-                setError('Please enter a valid phone number to continue.');
+            if (!isNameValid) {
+                setError('Please enter your name to continue.');
+            } else if (!isPhoneValid) {
+                setError(isPhoneRequired ? 'Please enter a valid phone number to continue.' : 'Enter a valid phone number or leave the field empty.');
             } else if (!hasAnyVote) {
                 setError('Please answer at least one poll before submitting.');
             }
@@ -305,12 +321,17 @@ export default function PollMaker({id}: {id: string}) {
 
         try {
             const entries = Object.entries(currentVotes);
+            const contactInfo = {
+                user_name: trimmedUserName || undefined,
+                user_phone: sanitizedPhoneNumber || undefined,
+            };
             await Promise.all(
                 entries.map(([pollId, answer]) =>
                     submitPollVotes({
                         id: pollId,
                         votes: answer.votes ?? [],
                         inputs: answer.inputs ?? [],
+                        ...contactInfo,
                     }),
                 ),
             );
@@ -384,20 +405,37 @@ export default function PollMaker({id}: {id: string}) {
                                 </div>
                             )}
 
-                            <div className="flex flex-col w-full gap-3 px-6 md:flex-row md:items-center md:justify-between">
-                                <div className="w-full md:w-auto">
-                                    <PhoneInput
-                                        countries={countries}
-                                        onChange={(value) => {
-                                            setPhoneNumber(value);
-                                            setError(null);
-                                        }}
-                                    />
-                                    {isPhoneRequired && !isPhoneValid && (
-                                        <p className="mt-2 text-sm text-red-50/90">
-                                            Enter a valid phone number (include country code).
-                                        </p>
-                                    )}
+                            <div className="flex flex-col w-full gap-3 px-6 md:flex-row md:items-center md:justify-between md:gap-4">
+                                <div className="flex w-full flex-col gap-3 md:flex-row md:items-center md:gap-3">
+                                    <div className="w-full md:w-1/2">
+                                        <Input
+                                            placeholder="Your name"
+                                            value={userName}
+                                            onChange={(event) => {
+                                                setUserName(event.target.value);
+                                                setError(null);
+                                            }}
+                                        />
+                                        {isPhoneRequired && !isNameValid && (
+                                            <p className="mt-2 text-sm text-red-50/90">
+                                                Name is required for this poll.
+                                            </p>
+                                        )}
+                                    </div>
+                                    <div className="w-full md:w-1/2">
+                                        <PhoneInput
+                                            countries={countries}
+                                            onChange={(value) => {
+                                                setPhoneNumber(value);
+                                                setError(null);
+                                            }}
+                                        />
+                                        {!isPhoneValid && (isPhoneRequired || hasPhoneInput) && (
+                                            <p className="mt-2 text-sm text-red-50/90">
+                                                Enter a valid phone number (include country code) or leave it empty.
+                                            </p>
+                                        )}
+                                    </div>
                                 </div>
                                 <Button
                                     className="mb-0"
