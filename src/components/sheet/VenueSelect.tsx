@@ -31,6 +31,7 @@ export const defaultVenues: VenueOption[] = [
   { label: 'لابی فیض و عطار', value: 'لابی فیض و عطار' },
   { label: 'پارکینگ', value: 'پارکینگ' },
   { label: 'درب اختصاصی', value: 'درب اختصاصی' },
+  {label: 'کلیه اماکن', value:'کلیه اماکن'}
 ];
 
 const VenueSelect: React.FC<VenueSelectProps> = ({

@@ -65,6 +65,9 @@ const FormInModal: React.FC<FormInModalProps> = ({
       { value: "قراردادها", text: "قراردادها" },
       { value: "روابط عمومی", text: "روابط عمومی" },
       { value: "دبیر همایش", text: "دبیر همایش" },
+      { value: "پیمانکاری", text: "پیمانکاری"},
+      { value: "ترابری", text: "ترابری"},
+      { value: "رستوران", text: "رستوران"}
     ],
     [],
   );

@@ -74,6 +74,10 @@ export const updateAdminStatus = (payload: AdminStatusPayload) => {
   return http.post<AdminStatusResponse>(endpoints.admin.updateStatus, payload);
 };
 
+export const deleteAdminUser = (userId: string | number) => {
+  return http.delete<AdminStatusResponse>(endpoints.admin.deleteUser(userId));
+};
+
 export const extractAdminUsers = (
   payload: AdminUserListResponse | AdminUserRecord[] | undefined,
 ): AdminUserRecord[] => {

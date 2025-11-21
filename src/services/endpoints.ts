@@ -13,6 +13,7 @@
     admin: {
         users: '/admin/users',
         updateStatus: '/admin/users/status',
+        deleteUser: (id: string | number) => `/admin/users/${encodeURIComponent(String(id))}`,
     },
     sheet: {
         fetch: '/sheet/fetch',

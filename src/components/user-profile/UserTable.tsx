@@ -12,6 +12,7 @@ import {
   extractAdminPaginationMeta,
   type AdminUserRecord,
   updateAdminStatus,
+  deleteAdminUser,
 } from "@/services/admin";
 import { useLocale } from "@/hooks/useLocale";
 import { getAuthTokenFromCookie } from "@/utils/authToken";
@@ -328,6 +329,51 @@ export default function UserTable() {
       [canManageUsers, setUsers, setMutationError, setMutatingUserIds, t],
   );
 
+  const deleteUser = useCallback(
+    async (user: AdminUserRecord) => {
+      if (!canManageUsers) {
+        return;
+      }
+
+      const identifier = resolveUserIdentifier(user);
+      if (!identifier) {
+        setMutationError(
+          t("tables.error.updateAdminStatus.missingIdentifier", {
+            defaultValue: "Unable to determine the selected admin account.",
+          }),
+        );
+        return;
+      }
+
+      setMutationError(null);
+      setMutatingUserIds((prev) => ({
+        ...prev,
+        [identifier]: true,
+      }));
+
+      try {
+        await deleteAdminUser(identifier);
+        setUsers((prev) =>
+          prev.filter((candidate) => resolveUserIdentifier(candidate) !== identifier),
+        );
+      } catch (deleteError) {
+        console.error("Failed to delete admin user", deleteError);
+        setMutationError(
+          t("tables.error.deleteAdmin.failed", {
+            defaultValue: "Failed to delete admin. Please try again.",
+          }),
+        );
+      } finally {
+        setMutatingUserIds((prev) => {
+          const next = { ...prev };
+          delete next[identifier];
+          return next;
+        });
+      }
+    },
+    [canManageUsers, setUsers, setMutationError, setMutatingUserIds, t],
+  );
+
   const handleDeleteUser = useCallback(
     (user: AdminUserRecord) => {
       setPendingUserAction({ type: "delete", user });
@@ -363,13 +409,17 @@ export default function UserTable() {
 
     setIsConfirmingUserAction(true);
     try {
-      const nextStatus = pendingUserAction.type === "verify";
-      await mutateUserStatus(pendingUserAction.user, nextStatus);
+      if (pendingUserAction.type === "delete") {
+        await deleteUser(pendingUserAction.user);
+      } else {
+        const nextStatus = pendingUserAction.type === "verify";
+        await mutateUserStatus(pendingUserAction.user, nextStatus);
+      }
       setPendingUserAction(null);
     } finally {
       setIsConfirmingUserAction(false);
     }
-  }, [pendingUserAction, mutateUserStatus, setPendingUserAction]);
+  }, [pendingUserAction, mutateUserStatus, deleteUser, setPendingUserAction]);
 
   const userActionDialogProps = useMemo(() => {
     if (!pendingUserAction) {
@@ -486,8 +536,11 @@ export default function UserTable() {
                   const adminRole =
                       typeof user.admin === "string" ? user.admin.toLowerCase() : "";
                   const isSuperAdminUser = adminRole === "super_admin";
+                  const isCanceledUser = adminRole === "canceled_user";
                   const adminTypeLabel = formatAdminType(user.admin, t);
                   const canRenderMutationActions = canMutate && !isSuperAdminUser;
+                  const shouldShowDelete =
+                      adminRole !== "user_admin" && (isVerified || isCanceledUser);
                   const superAdminLabel = t("userTable.roles.superAdmin");
 
                   return (
@@ -523,33 +576,62 @@ export default function UserTable() {
                             )}
 
                             {canRenderMutationActions ? (
-                                adminRole !== "user_admin" && isVerified ? (
-                                    <button
-                                        type="button"
-                                        onClick={() => handleDeleteUser(user)}
-                                        className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
-                                        aria-label={t("userTable.actions.remove")}
-                                        disabled={isMutating}
-                                    >
-                                      <Badge size="sm" color="info">
-                                        <svg
-                                            width="16"
-                                            height="16"
-                                            viewBox="0 0 16 16"
-                                            fill="none"
-                                            xmlns="http://www.w3.org/2000/svg"
-                                        >
-                                          <path
-                                              d="M5.5 2.5L5.79289 2.20711C5.925 2.075 6.10754 2 6.2981 2H9.7019C9.89246 2 10.075 2.075 10.2071 2.20711L10.5 2.5H12.5C12.7761 2.5 13 2.72386 13 3C13 3.27614 12.7761 3.5 12.5 3.5H3.5C3.22386 3.5 3 3.27614 3 3C3 2.72386 3.22386 2.5 3.5 2.5H5.5Z"
-                                              fill="currentColor"
-                                          />
-                                          <path
-                                              d="M4 5H12V12.5C12 13.3284 11.3284 14 10.5 14H5.5C4.67157 14 4 13.3284 4 12.5V5Z"
-                                              fill="currentColor"
-                                          />
-                                        </svg>
-                                      </Badge>
-                                    </button>
+                                shouldShowDelete ? (
+                                    <>
+                                      {!isVerified && isCanceledUser && (
+                                          <button
+                                              type="button"
+                                              onClick={() => handleVerifyUser(user)}
+                                              className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
+                                              aria-label={t("userTable.actions.verify")}
+                                              disabled={isMutating}
+                                          >
+                                            <Badge size="sm" color="success">
+                                              <svg
+                                                  width="16"
+                                                  height="16"
+                                                  viewBox="0 0 16 16"
+                                                  fill="none"
+                                                  xmlns="http://www.w3.org/2000/svg"
+                                              >
+                                                <path
+                                                    d="M13.4017 4.35986L6.12166 11.6399L2.59833 8.11657"
+                                                    stroke="currentColor"
+                                                    strokeWidth="1.8"
+                                                    strokeLinecap="round"
+                                                    strokeLinejoin="round"
+                                                />
+                                              </svg>
+                                            </Badge>
+                                          </button>
+                                      )}
+                                      <button
+                                          type="button"
+                                          onClick={() => handleDeleteUser(user)}
+                                          className="inline-flex items-center disabled:cursor-not-allowed disabled:opacity-50"
+                                          aria-label={t("userTable.actions.remove")}
+                                          disabled={isMutating}
+                                      >
+                                        <Badge size="sm" color="info">
+                                          <svg
+                                              width="16"
+                                              height="16"
+                                              viewBox="0 0 16 16"
+                                              fill="none"
+                                              xmlns="http://www.w3.org/2000/svg"
+                                          >
+                                            <path
+                                                d="M5.5 2.5L5.79289 2.20711C5.925 2.075 6.10754 2 6.2981 2H9.7019C9.89246 2 10.075 2.075 10.2071 2.20711L10.5 2.5H12.5C12.7761 2.5 13 2.72386 13 3C13 3.27614 12.7761 3.5 12.5 3.5H3.5C3.22386 3.5 3 3.27614 3 3C3 2.72386 3.22386 2.5 3.5 2.5H5.5Z"
+                                                fill="currentColor"
+                                            />
+                                            <path
+                                                d="M4 5H12V12.5C12 13.3284 11.3284 14 10.5 14H5.5C4.67157 14 4 13.3284 4 12.5V5Z"
+                                                fill="currentColor"
+                                            />
+                                          </svg>
+                                        </Badge>
+                                      </button>
+                                    </>
                                 ) : (
                                     <>
                                       <button

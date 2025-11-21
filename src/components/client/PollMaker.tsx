@@ -10,6 +10,8 @@ import {extractPollPaginationMeta, extractPolls, fetchPolls, PollRecord, submitP
 import Text from '@/components/client/Text';
 import Single from '@/components/client/Single';
 import {buildMultiChoiceVotes, buildSingleChoiceVotes, inferPollType} from '@/utils/votes';
+import Image from "next/image";
+import text from "public/images/logo/text.png";
 
 interface SheetInfo {
     id?: string;
@@ -332,6 +334,7 @@ export default function PollMaker({id}: {id: string}) {
                     </div>
                 )}
                 <div className="sr-only">Items: {polls.length} Total pages: {totalPages}</div>
+                <Image  src={text} alt={"logo"} loading="lazy"/>
                 <h1 className="text-3xl font-bold text-center mb-8 text-blue-950">
                     {sheetInfo.title ?? 'سامانه نظرسنجی مرکز همایش‌های بین‌المللی صدا و سیما'}
                 </h1>
