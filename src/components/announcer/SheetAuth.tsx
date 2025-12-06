@@ -29,6 +29,9 @@ export default function SheetAuth() {
                             ۰۹۱۰-۴۳۰۰۲۱۵
                         </Label>
                     </Link>
+                    <Link href="https://ble.ir/iiccir">
+                        <Label className="mt-2 text-bolder text-lg text-left">کانال بله</Label>
+                    </Link>
                     <Link href="https://iicc.ir" >
                         <Label className="mt-2 text-bolder text-lg text-left ml-4">
                             https://iicc.ir
