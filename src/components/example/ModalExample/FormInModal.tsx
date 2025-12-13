@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 
 import Button from "../../ui/button/Button";
 import { Modal } from "../../ui/modal";
@@ -77,6 +77,22 @@ const FormInModal: React.FC<FormInModalProps> = ({
     [t],
   );
 
+  const singleChoiceDefaultOptions = useMemo(
+    () => [
+      t("sheet.poll.defaults.single.bad"),
+      t("sheet.poll.defaults.single.medium"),
+      t("sheet.poll.defaults.single.good"),
+      t("sheet.poll.defaults.single.prefect"),
+    ],
+    [t],
+  );
+
+  const getDefaultOptionsForType = useCallback(
+    (targetType: string) =>
+      targetType === pollTypes.single ? singleChoiceDefaultOptions : defaultOptions,
+    [defaultOptions, singleChoiceDefaultOptions],
+  );
+
   const [type, setType] = useState<string>("");
   const [options, setOptions] = useState<string[]>(defaultOptions);
   const [category, setCategory] = useState<string[]>([]);
@@ -97,10 +113,10 @@ const FormInModal: React.FC<FormInModalProps> = ({
         ? ["opinion"]
         : editingPoll.options.length > 0
           ? [...editingPoll.options]
-          : defaultOptions,
+          : getDefaultOptionsForType(editingPoll.poll_type),
     );
     openModal();
-  }, [editingPoll, openModal, defaultOptions]);
+  }, [editingPoll, getDefaultOptionsForType, openModal]);
 
   const isTextType = type === pollTypes.text;
 
@@ -110,19 +126,21 @@ const FormInModal: React.FC<FormInModalProps> = ({
     }
 
     setOptions((current) => {
+      const defaultForType = getDefaultOptionsForType(type);
+
       if (current.length === 0) {
-        return defaultOptions;
+        return defaultForType;
       }
 
       const normalizedCurrent = current.map((option) => option.trim());
-      const normalizedDefault = defaultOptions.map((option) => option.trim());
+      const normalizedDefault = defaultForType.map((option) => option.trim());
       const matchesDefault =
         normalizedCurrent.length === normalizedDefault.length &&
         normalizedCurrent.every((value, index) => value === normalizedDefault[index]);
 
-      return matchesDefault ? defaultOptions : current;
+      return matchesDefault ? defaultForType : current;
     });
-  }, [defaultOptions, isTextType]);
+  }, [getDefaultOptionsForType, isTextType, type]);
 
   const sanitizedOptions = useMemo(() => {
     if (isTextType) {
@@ -141,7 +159,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
     setType("");
     setTitle("");
     setCategory([]);
-    setOptions(defaultOptions);
+    setOptions(getDefaultOptionsForType(""));
   };
 
   const handleTypeSelect = (targetType: string) => (checked: boolean) => {
@@ -153,14 +171,14 @@ const FormInModal: React.FC<FormInModalProps> = ({
       return;
     }
 
-      if (checked) {
-        setType(targetType);
-        if (targetType === pollTypes.text) {
-          setOptions(["opinion"]);
-        } else if (options.length === 0) {
-          setOptions(defaultOptions);
-        }
+    if (checked) {
+      setType(targetType);
+      if (targetType === pollTypes.text) {
+        setOptions(["opinion"]);
+      } else if (targetType === pollTypes.single || options.length === 0) {
+        setOptions(getDefaultOptionsForType(targetType));
       }
+    }
   };
 
   const addOption = (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -292,6 +310,7 @@ const FormInModal: React.FC<FormInModalProps> = ({
                             <Input
                               type="text"
                               placeholder={t("sheet.poll.optionLabel", { index: index + 1 })}
+                              value={option}
                               onChange={(event) => handleOption(event, index)}
                             />
                           </div>
