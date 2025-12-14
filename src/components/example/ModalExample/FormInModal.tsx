@@ -79,10 +79,10 @@ const FormInModal: React.FC<FormInModalProps> = ({
 
   const singleChoiceDefaultOptions = useMemo(
     () => [
-      t("sheet.poll.defaults.single.bad"),
-      t("sheet.poll.defaults.single.medium"),
-      t("sheet.poll.defaults.single.good"),
       t("sheet.poll.defaults.single.prefect"),
+      t("sheet.poll.defaults.single.good"),
+      t("sheet.poll.defaults.single.medium"),
+      t("sheet.poll.defaults.single.bad"),
     ],
     [t],
   );
