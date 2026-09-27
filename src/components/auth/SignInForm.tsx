@@ -8,8 +8,8 @@ import PhoneInput from "@/components/form/group-input/PhoneInput";
 import { normalizePhone } from "@/utils/normalizePhone";
 import { login, LoginCredentials } from "@/services/auth/auth";
 import { useRouter } from "next/navigation";
-import { extractToken, setAuthTokenCookie } from "@/utils/authToken";
 import {useLocale} from "@/hooks/useLocale";
+import useAlert from "@/hooks/useAlert";
 
 export default function SignInForm() {
   const [showPassword, setShowPassword] = useState(false);
@@ -21,6 +21,7 @@ export default function SignInForm() {
   const router = useRouter();
 
   const {t} = useLocale();
+  const { showAlert } = useAlert();
 
   const countries = [
     {
@@ -35,21 +36,16 @@ export default function SignInForm() {
 
   const log_in = async (payload: LoginCredentials) => {
     try {
-      const { status, data } = await login(payload);
+      const { status } = await login(payload);
       if (status >= 200 && status < 300) {
-        const token = extractToken(data);
-        if (token) {
-          setAuthTokenCookie(token);
-        } else {
-          console.warn("Login succeeded but no token was found in the response payload");
-        }
+        showAlert({ variant: 'success', title: { en: 'Welcome back', fa: 'خوش آمدید' }, message: { en: 'You have signed in successfully.', fa: 'ورود شما با موفقیت انجام شد.' } });
         router.push("/home");
       } else {
-        console.log("error", status);
-        // TODO: surface error to the user
+        showAlert({ variant: 'error', title: { en: 'Sign in failed', fa: 'ورود ناموفق بود' }, message: { en: 'Please check your credentials and try again.', fa: 'لطفاً اطلاعات ورود را بررسی و دوباره تلاش کنید.' } });
       }
     } catch (error) {
       console.error("Login failed", error);
+      showAlert({ variant: 'error', title: { en: 'Network issue', fa: 'خطای شبکه' }, message: { en: 'Unable to reach the server. Please try again.', fa: 'ارتباط با سرور برقرار نشد. لطفاً دوباره تلاش کنید.' } });
     }
   };
 
@@ -70,13 +66,12 @@ export default function SignInForm() {
   };
 
   const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    setIsLoading(true);
     e.preventDefault();
     if (phoneNumber === "" || password === "") {
-      console.log("fill up");
-      // TODO: alert user about missing fields
+      showAlert({ variant: 'warning', title: { en: 'Missing information', fa: 'اطلاعات ناقص است' }, message: { en: 'Please enter your phone number and password.', fa: 'لطفاً شماره تلفن و رمز عبور را وارد کنید.' } });
       return;
     }
+    setIsLoading(true);
 
     const payload: LoginCredentials = {
       phone: phoneNumber,
@@ -84,7 +79,7 @@ export default function SignInForm() {
     };
 
     await log_in(payload);
-    setIsLoading(false)
+    setIsLoading(false);
   };
 
   return (
@@ -115,6 +110,7 @@ export default function SignInForm() {
                   <div className="relative" dir={"ltr"}>
                     <Input
                       type={showPassword ? "text" : "password"}
+                      autoComplete="current-password"
                       placeholder={t('auth.inputs.passwordPlaceholder')}
                       onChange={handlePassword}
                     />

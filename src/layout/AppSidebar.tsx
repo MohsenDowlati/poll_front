@@ -10,9 +10,7 @@ import {
   GridIcon,
   HorizontaLDots,
 } from "../icons/index";
-import { getAuthTokenFromCookie } from "@/utils/authToken";
-import { decodeJwtPayload } from "@/utils/jwt";
-import { isSuperAdmin } from "@/utils/roles";
+import { getSessionRole } from "@/utils/authToken";
 type NavSubItem = { labelKey: string; path: string; pro?: boolean; new?: boolean };
 type NavItem = {
   labelKey: string;
@@ -44,9 +42,7 @@ const AppSidebar: React.FC = () => {
   const submenuIndentClass = isRtl ? "mr-9" : "ml-9";
   const pathname = usePathname();
   useEffect(() => {
-    const token = getAuthTokenFromCookie();
-    const payload = decodeJwtPayload(token);
-    setCanViewUsers(isSuperAdmin(payload));
+    setCanViewUsers(getSessionRole() === "super_admin");
   }, []);
 
   const shouldShowSubItem = useCallback(

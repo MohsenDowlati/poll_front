@@ -122,7 +122,7 @@ function NotificationCard({ notification }: NotificationCardProps) {
     .join(" ");
 
   return (
-    <DropdownItem className="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5">
+    <DropdownItem tag="div" className="flex gap-3 rounded-lg border-b border-gray-100 p-3 px-4.5 py-3 hover:bg-gray-100 dark:border-gray-800 dark:hover:bg-white/5">
       <span className="block w-full">
         <span className="mb-1.5 block space-x-1 text-theme-sm text-gray-500 dark:text-gray-400">
           <span className="font-medium text-gray-800 dark:text-white/90">{displayName}</span>

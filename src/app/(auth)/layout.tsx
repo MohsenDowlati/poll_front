@@ -3,14 +3,12 @@ import GridShape from "@/components/common/GridShape";
 import ThemeTogglerTwo from "@/components/common/ThemeTogglerTwo";
 
 import { ThemeProvider } from "@/context/ThemeContext";
-import { extractAdminType } from "@/utils/roles";
-import { decodeJwtPayload } from "@/utils/jwt";
 import Image from "next/image";
 import Link from "next/link";
 import { cookies } from "next/headers";
 import React from "react";
 
-const AUTH_COOKIE_KEY = "authToken";
+const ROLE_COOKIE_KEY = "session_role";
 const RESTRICTED_ADMIN_TYPES = new Set(["new_user", "canceled_user"]);
 
 export default async function AuthLayout({
@@ -19,9 +17,7 @@ export default async function AuthLayout({
   children: React.ReactNode;
 }) {
   const cookieStore = await cookies();
-  const token = cookieStore.get(AUTH_COOKIE_KEY)?.value ?? null;
-  const payload = decodeJwtPayload(token);
-  const adminType = extractAdminType(payload)?.toLowerCase();
+  const adminType = cookieStore.get(ROLE_COOKIE_KEY)?.value?.toLowerCase();
   const shouldShowRestriction = Boolean(
     adminType && RESTRICTED_ADMIN_TYPES.has(adminType)
   );

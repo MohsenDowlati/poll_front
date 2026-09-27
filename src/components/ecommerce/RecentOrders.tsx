@@ -32,9 +32,7 @@ import {
   extractPolls,
   fetchAdminPolls,
 } from '@/services/poll/poll';
-import { getAuthTokenFromCookie } from '@/utils/authToken';
-import { decodeJwtPayload } from '@/utils/jwt';
-import { isSuperAdmin } from '@/utils/roles';
+import { getSessionRole } from '@/utils/authToken';
 import { useRouter } from "next/navigation";
 import FullScreenModal from "@/components/example/ModalExample/FullScreenModal";
 import ConfirmDialog from "@/components/ui/modal/ConfirmDialog";
@@ -573,12 +571,7 @@ export default function RecentOrders() {
   }, [canManageSheets, collator, t]);
 
   useEffect(() => {
-    const token = getAuthTokenFromCookie();
-    if (!token) {
-      router.push("/")
-    }
-    const payload = decodeJwtPayload(token);
-    setCanManageSheets(isSuperAdmin(payload));
+    setCanManageSheets(getSessionRole() === "super_admin");
   }, [router]);
 
   useEffect(() => {

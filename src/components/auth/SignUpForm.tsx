@@ -9,7 +9,6 @@ import { signup, SignupPayload } from "@/services/auth/auth";
 import Button from "@/components/ui/button/Button";
 import { normalizePhone } from "@/utils/normalizePhone";
 import { useRouter } from "next/navigation";
-import { extractToken, setAuthTokenCookie } from "@/utils/authToken";
 import { useLocale } from "@/hooks/useLocale";
 import useAlert from "@/hooks/useAlert";
 
@@ -43,33 +42,27 @@ export default function SignUpForm() {
       console.log(status, data);
       if (status >= 200 && status < 300) {
         console.log("ok", data);
-        const token = extractToken(data);
-        if (token) {
-          setAuthTokenCookie(token);
-        } else {
-          console.warn("Signup succeeded but no token was found in the response payload");
-        }
         showAlert({
           variant: "success",
-          title: "Account created",
-          message: "You have successfully signed up.",
+          title: { en: "Account created", fa: "حساب کاربری ایجاد شد" },
+          message: { en: "You have successfully signed up.", fa: "ثبت‌نام شما با موفقیت انجام شد." },
         });
-        router.push("/home");
+        router.push("/");
       } else {
         console.log("error", status);
         // TODO: surface error to the user
         showAlert({
           variant: "error",
-          title: "Sign up failed",
-          message: "Please verify your details and try again.",
+          title: { en: "Sign up failed", fa: "ثبت‌نام ناموفق بود" },
+          message: { en: "Please verify your details and try again.", fa: "لطفاً اطلاعات را بررسی و دوباره تلاش کنید." },
         });
       }
     } catch (error) {
       console.error("Sign up failed", error);
       showAlert({
         variant: "error",
-        title: "Network issue",
-        message: "Unable to reach the server. Please try again shortly.",
+        title: { en: "Network issue", fa: "خطای شبکه" },
+        message: { en: "Unable to reach the server. Please try again shortly.", fa: "ارتباط با سرور برقرار نشد. لطفاً کمی بعد دوباره تلاش کنید." },
       });
     }
   }
@@ -107,8 +100,8 @@ export default function SignUpForm() {
       console.log("fill up");
       showAlert({
         variant: "warning",
-        title: "Missing information",
-        message: "Please fill out all required fields.",
+        title: { en: "Missing information", fa: "اطلاعات ناقص است" },
+        message: { en: "Please fill out all required fields.", fa: "لطفاً همه فیلدهای الزامی را تکمیل کنید." },
       });
       return;
     }
@@ -191,6 +184,7 @@ export default function SignUpForm() {
                     <Input
                       placeholder={t('auth.inputs.passwordPlaceholder')}
                       type={showPassword ? "text" : "password"}
+                      autoComplete="new-password"
                       onChange={handlePassword}
                     />
                     <span

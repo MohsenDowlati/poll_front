@@ -1,6 +1,6 @@
 'use client';
 
-import { useAlertContext } from '@/context/AlertContext';
+import { useAlertContext, type ShowAlertOptions } from '@/context/AlertContext';
 
 /**
  * Access the global alert bus.
@@ -24,10 +24,16 @@ const useAlert = () => {
 
   return {
     showAlert,
+    success: (title: ShowAlertOptions['title'], message: ShowAlertOptions['message']) =>
+      showAlert({ variant: 'success', title, message }),
+    error: (title: ShowAlertOptions['title'], message: ShowAlertOptions['message']) =>
+      showAlert({ variant: 'error', title, message }),
+    info: (title: ShowAlertOptions['title'], message: ShowAlertOptions['message']) =>
+      showAlert({ variant: 'info', title, message }),
     dismissAlert,
     clearAlerts,
   };
 };
 
 export default useAlert;
-export type { ShowAlertOptions, AlertVariant } from '@/context/AlertContext';
+export type { ShowAlertOptions, AlertVariant, AlertText, BilingualText } from '@/context/AlertContext';

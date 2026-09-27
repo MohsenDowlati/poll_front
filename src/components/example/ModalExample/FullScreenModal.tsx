@@ -9,9 +9,7 @@ import PollResult from "@/components/sheet/PollResult";
 import {AdminPollSummary, extractAdminPolls, extractPollPaginationMeta, fetchAdminPolls,} from "@/services/poll/poll";
 import {exportSheet} from "@/services/sheet/sheet";
 import {useLocale} from "@/hooks/useLocale";
-import {getAuthTokenFromCookie} from "@/utils/authToken";
-import {decodeJwtPayload} from "@/utils/jwt";
-import {isSuperAdmin} from "@/utils/roles";
+import {getSessionRole} from "@/utils/authToken";
 
 interface FullScreenModalProps {
   sheetId?: string | number;
@@ -415,16 +413,8 @@ export default function FullScreenModal({
   }, [isFullscreenModalOpen, page, loadPolls]);
 
   useEffect(() => {
-    const token = getAuthTokenFromCookie();
-    if (!token) {
-      setCanExportSnapshots(false);
-      setCanExportCsv(false);
-      return;
-    }
-
-    setCanExportSnapshots(true);
-    const payload = decodeJwtPayload(token);
-    setCanExportCsv(isSuperAdmin(payload));
+    setCanExportSnapshots(Boolean(getSessionRole()));
+    setCanExportCsv(getSessionRole() === "super_admin");
   }, []);
 
   const categoryLabelMap = useMemo(() => {

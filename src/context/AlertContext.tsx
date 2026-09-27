@@ -11,11 +11,19 @@ import React, {
 import Alert from '@/components/ui/alert/Alert';
 
 export type AlertVariant = 'success' | 'error' | 'warning' | 'info';
+export interface BilingualText { en: string; fa: string }
+export type AlertText = string | BilingualText;
+
+export const dispatchToast = (options: ShowAlertOptions) => {
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new CustomEvent<ShowAlertOptions>('app:toast', { detail: options }));
+  }
+};
 
 export interface ShowAlertOptions {
   variant: AlertVariant;
-  title: string;
-  message: string;
+  title: AlertText;
+  message: AlertText;
   showLink?: boolean;
   linkHref?: string;
   linkText?: string;
@@ -39,6 +47,8 @@ interface AlertContextValue {
 const DEFAULT_DURATION = 4500;
 
 const AlertContext = createContext<AlertContextValue | undefined>(undefined);
+const isBilingualText = (value: AlertText): value is BilingualText =>
+  typeof value === 'object' && value !== null && 'en' in value && 'fa' in value;
 
 const generateAlertId = () => {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -84,6 +94,15 @@ export const AlertProvider: React.FC<React.PropsWithChildren> = ({ children }) =
     },
     [dismissAlert],
   );
+
+  React.useEffect(() => {
+    const handleToast = (event: Event) => {
+      const detail = (event as CustomEvent<ShowAlertOptions>).detail;
+      if (detail?.variant && detail.title && detail.message) showAlert(detail);
+    };
+    window.addEventListener('app:toast', handleToast);
+    return () => window.removeEventListener('app:toast', handleToast);
+  }, [showAlert]);
 
   const value = useMemo<AlertContextValue>(
     () => ({
@@ -131,10 +150,10 @@ const AlertViewport: React.FC<{
   }
 
   return (
-    <div className="pointer-events-none fixed inset-x-0 top-4 z-[9999] flex flex-col items-center gap-3 px-4 sm:items-end sm:px-6">
+    <div role="region" aria-live="polite" aria-label="Notifications / اعلان‌ها" className="pointer-events-none fixed inset-x-0 top-4 z-[9999] flex flex-col items-center gap-3 px-4 sm:items-end sm:px-6">
       {alerts.map((alert) => (
         <div key={alert.id} className="pointer-events-auto relative w-full max-w-sm drop-shadow-lg transition-all duration-200">
-          <Alert {...pickAlertProps(alert)} />
+          <Alert {...pickAlertProps(alert)} title={isBilingualText(alert.title) ? `${alert.title.en} / ${alert.title.fa}` : alert.title} message={isBilingualText(alert.message) ? `${alert.message.en} / ${alert.message.fa}` : alert.message} />
           <button
             type="button"
             aria-label="Dismiss alert"

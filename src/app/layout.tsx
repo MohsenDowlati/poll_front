@@ -36,6 +36,8 @@ export default async function RootLayout({
   const runtimeEnv = {
     NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL ?? '',
   };
+  // Prevent a deployment-provided value from terminating the script element.
+  const runtimeEnvScript = JSON.stringify(runtimeEnv).replace(/</g, '\\u003c');
 
   return (
     <html lang={initialLanguage} dir={direction} suppressHydrationWarning>
@@ -48,7 +50,7 @@ export default async function RootLayout({
         <script
           id="runtime-env"
           dangerouslySetInnerHTML={{
-            __html: `window.__ENV__ = Object.assign({}, window.__ENV__ || {}, ${JSON.stringify(runtimeEnv)});`,
+            __html: `window.__ENV__ = Object.assign({}, window.__ENV__ || {}, ${runtimeEnvScript});`,
           }}
         />
         <AppProviders initialLanguage={initialLanguage}>{children}</AppProviders>

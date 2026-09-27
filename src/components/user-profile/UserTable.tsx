@@ -15,9 +15,7 @@ import {
   deleteAdminUser,
 } from "@/services/admin";
 import { useLocale } from "@/hooks/useLocale";
-import { getAuthTokenFromCookie } from "@/utils/authToken";
-import { decodeJwtPayload } from "@/utils/jwt";
-import { isSuperAdmin } from "@/utils/roles";
+import { getSessionRole } from "@/utils/authToken";
 
 const DEFAULT_PAGE = 1;
 const DEFAULT_PAGE_SIZE = 10;
@@ -250,13 +248,7 @@ export default function UserTable() {
   }, [page, pageSize, t]);
 
   useEffect(() => {
-    const token = getAuthTokenFromCookie();
-    if (!token) {
-      setCanManageUsers(false);
-      return;
-    }
-    const payload = decodeJwtPayload(token);
-    setCanManageUsers(isSuperAdmin(payload));
+    setCanManageUsers(getSessionRole() === "super_admin");
   }, []);
 
   const handlePageChange = (nextPage: number) => {

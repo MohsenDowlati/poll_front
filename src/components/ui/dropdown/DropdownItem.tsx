@@ -2,7 +2,7 @@ import type React from "react";
 import Link from "next/link";
 
 interface DropdownItemProps {
-  tag?: "a" | "button";
+  tag?: "a" | "button" | "div";
   href?: string;
   onClick?: () => void;
   onItemClick?: () => void;
@@ -38,8 +38,12 @@ export const DropdownItem: React.FC<DropdownItemProps> = ({
     );
   }
 
+  if (tag === "div") {
+    return <div className={combinedClasses}>{children}</div>;
+  }
+
   return (
-    <button onClick={handleClick} className={combinedClasses}>
+    <button type="button" onClick={handleClick} className={combinedClasses}>
       {children}
     </button>
   );
