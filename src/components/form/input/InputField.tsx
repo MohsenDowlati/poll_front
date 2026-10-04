@@ -5,6 +5,7 @@ interface InputProps {
   id?: string;
   name?: string;
   placeholder?: string;
+  autoComplete?: string;
   defaultValue?: string | number;
   value?: string | number;
   onChange?: (e: React.ChangeEvent<HTMLInputElement>) => void;
@@ -23,6 +24,7 @@ const Input: FC<InputProps> = ({
   id,
   name,
   placeholder,
+  autoComplete,
   value,
   onChange,
   className = "",
@@ -55,6 +57,7 @@ const Input: FC<InputProps> = ({
         id={id}
         name={name}
         placeholder={placeholder}
+        autoComplete={autoComplete}
         value={value}
         onChange={onChange}
         min={min}
@@ -83,4 +86,3 @@ const Input: FC<InputProps> = ({
 };
 
 export default Input;
-
