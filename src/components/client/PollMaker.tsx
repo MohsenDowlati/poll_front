@@ -90,10 +90,6 @@ export default function PollMaker({id}: {id: string}) {
             code: 'IR',
             label: '+98',
         },
-        {
-            code: 'US',
-            label: '+1',
-        },
     ];
 
     const [page, setPage] = useState(1);
@@ -118,13 +114,13 @@ export default function PollMaker({id}: {id: string}) {
 
     const isPhoneValid = useMemo(() => {
         if (isPhoneRequired) {
-            return hasPhoneInput && /^\+?\d{10,15}$/.test(sanitizedPhoneNumber);
+            return hasPhoneInput && /^\+98\d{10}$/.test(sanitizedPhoneNumber);
         }
         if (!hasPhoneInput) {
             return true;
         }
 
-        return /^\+?\d{10,15}$/.test(sanitizedPhoneNumber);
+        return /^\+98\d{10}$/.test(sanitizedPhoneNumber);
     }, [hasPhoneInput, isPhoneRequired, sanitizedPhoneNumber]);
 
     const isNameValid = useMemo(() => {
@@ -308,7 +304,7 @@ export default function PollMaker({id}: {id: string}) {
             if (!isNameValid) {
                 setError('Please enter your name to continue.');
             } else if (!isPhoneValid) {
-                setError(isPhoneRequired ? 'Please enter a valid phone number to continue.' : 'Enter a valid phone number or leave the field empty.');
+                setError(isPhoneRequired ? 'Please enter a valid Iranian phone number with the +98 prefix.' : 'Enter a valid Iranian phone number with the +98 prefix or leave it empty.');
             } else if (!hasAnyVote) {
                 setError('Please answer at least one poll before submitting.');
             }
@@ -432,7 +428,7 @@ export default function PollMaker({id}: {id: string}) {
                                         />
                                         {!isPhoneValid && (isPhoneRequired || hasPhoneInput) && (
                                             <p className="mt-2 text-sm text-red-50/90">
-                                                Enter a valid phone number (include country code) or leave it empty.
+                                                Enter a valid Iranian phone number with the +98 prefix or leave it empty.
                                             </p>
                                         )}
                                     </div>

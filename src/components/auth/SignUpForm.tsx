@@ -30,10 +30,6 @@ export default function SignUpForm() {
       code: "IR",
       label: "+98",
     },
-    {
-      code: "US",
-      label: "+1",
-    },
   ];
 
   async function sign_up(payload: SignupPayload) {
@@ -68,14 +64,8 @@ export default function SignUpForm() {
   }
 
   const setPhoneNumber = (val: string) => {
-    const num = val;
-    if (num.startsWith("+1")) {
-      const normalizedPhone = normalizePhone(num, "US");
-      setPhone(normalizedPhone);
-    } else {
-      const normalizedPhone = normalizePhone(num, "IR");
-      setPhone(normalizedPhone);
-    }
+    const normalizedPhone = normalizePhone(val, "IR");
+    setPhone(normalizedPhone.startsWith("+98") ? normalizedPhone : "");
   };
 
   const handlePassword = (e: React.ChangeEvent<HTMLInputElement>) => {
